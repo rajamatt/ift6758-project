@@ -16,6 +16,19 @@ class NHLDataFetcher:
 
 
     def fetch_raw_game_data(self, game_id: str):
+        """Fetches and locally stores the raw JSON data from the play-by-play endpoint for a specific game_id.
+        If the file is already stored at the NHL_DATA_PATH location then the game_id is skipped.
+
+        How the game ID is constructed:
+        - First four digits = year of start of season (ie: 2022-2023 season would just be 2022)
+        - Two next digits = regular season (02) and playoffs (03)
+        - Four last digits = game number (for playoffs there's extra rules here)
+        
+        See here for more info: https://gitlab.com/dword4/nhlapi/-/blob/master/stats-api.md#game-ids
+
+        Args:
+            game_id (str): Game ID to fetch the play-by-play data for.
+        """
         full_local_path = os.path.join(self.local_data_path, f'game_{game_id}.json')
 
         if os.path.exists(full_local_path):
@@ -35,12 +48,22 @@ class NHLDataFetcher:
 
 
     def fetch_raw_regular_season_data(self, season: int):
+        """Fetches and locally stores the raw JSON data from the play-by-play endpoint for a specific regular season.
+
+        Args:
+            season (int): Regular season to fetch the play-by-play data for.
+        """
         for game_number in range(1, MAX_GAMES_PER_REGULAR_SEASON):
                 game_id = f'{season}02{str(game_number).zfill(4)}'
                 self.fetch_raw_game_data(game_id)
 
 
     def fetch_raw_playoff_season_data(self, season: int):
+        """Fetches and locally stores the raw JSON data from the play-by-play endpoint for a specific playoff season.
+
+        Args:
+            season (int): Playoff season to fetch the play-by-play data for.
+        """
         for round_num in range(0, 4):
             matchups = MATCHUPS_PER_PLAYOFF_ROUND[round_num]
             for match_num in range(1, matchups + 1):
@@ -50,9 +73,13 @@ class NHLDataFetcher:
 
 
     def fetch_raw_season_data(self, start_season: int, end_season: int = 0):
-        # First four digits = year of start of season
-        # Two next digits = regular season (02) and playoffs (03)
-        # Four last digits = game number (for playoffs there's extra rules here)
+        """Fetches and locally stores the raw JSON data from the play-by-play endpoint for a whole season (regular + playoffs).
+        An end season can also be provided to fetch data from a range of seasons.
+
+        Args:
+            start_season (int): First season to start fetch the play-by-play data for.
+            end_season (int, optional): Last season to fetch the play-by-play data for. Defaults to 0.
+        """
         if end_season == 0:
             self.fetch_raw_regular_season_data(start_season)
             self.fetch_raw_playoff_season_data(start_season)
