@@ -15,6 +15,14 @@ class NHLDataFetcher:
         self.local_data_path = os.getenv('NHL_DATA_PATH')
 
 
+    def get_game_local_path(self, game_id: str):
+        return os.path.join(self.local_data_path, f'game_{game_id}.json')
+
+
+    def game_already_fetched(self, game_id: str):
+        return os.path.exists(self.get_game_local_path(game_id))
+
+
     def fetch_raw_game_data(self, game_id: str):
         """Fetches and locally stores the raw JSON data from the play-by-play endpoint for a specific game_id.
         If the file is already stored at the NHL_DATA_PATH location then the game_id is skipped.
@@ -29,9 +37,9 @@ class NHLDataFetcher:
         Args:
             game_id (str): Game ID to fetch the play-by-play data for.
         """
-        full_local_path = os.path.join(self.local_data_path, f'game_{game_id}.json')
+        game_local_path = self.get_game_local_path(game_id)
 
-        if os.path.exists(full_local_path):
+        if self.game_already_fetched(game_id):
             return
 
         pbp_endpoint = PLAY_BY_PLAY_ENDPOINT.replace('{game-id}', game_id)
@@ -41,7 +49,7 @@ class NHLDataFetcher:
         if response.status_code == 200:
             json_data = response.json()
 
-            with open(full_local_path, 'w') as f:
+            with open(game_local_path, 'w') as f:
                 json.dump(json_data, f)            
         else:
             print(f'GET {full_endpoint} could not complete. Response status: {response.status_code}')
