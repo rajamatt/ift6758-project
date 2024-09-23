@@ -13,6 +13,31 @@ MAX_GAMES_PER_PLAYOFF_ROUND = 7
 class NHLDataFetcher:
     def __init__(self):
         self.local_data_path = os.getenv('NHL_DATA_PATH')
+        os.makedirs(self.local_data_path, exist_ok=True)
+
+
+    def get_game_local_path(self, game_id: str) -> str:
+        """Gets the local path of a game.
+
+        Args:
+            game_id (str): Game ID to get the local path for.
+
+        Returns:
+            str: Local path of the game's data file.
+        """
+        return os.path.join(self.local_data_path, f'game_{game_id}.json')
+
+
+    def game_already_fetched(self, game_id: str) -> bool:
+        """Checks if the game was already fetched or not.
+
+        Args:
+            game_id (str): Game ID to check.
+
+        Returns:
+            bool: True if game is already stored locally.
+        """
+        return os.path.exists(self.get_game_local_path(game_id))
 
 
     def fetch_raw_game_data(self, game_id: str):
@@ -29,9 +54,9 @@ class NHLDataFetcher:
         Args:
             game_id (str): Game ID to fetch the play-by-play data for.
         """
-        full_local_path = os.path.join(self.local_data_path, f'game_{game_id}.json')
+        game_local_path = self.get_game_local_path(game_id)
 
-        if os.path.exists(full_local_path):
+        if self.game_already_fetched(game_id):
             return
 
         pbp_endpoint = PLAY_BY_PLAY_ENDPOINT.replace('{game-id}', game_id)
@@ -41,7 +66,7 @@ class NHLDataFetcher:
         if response.status_code == 200:
             json_data = response.json()
 
-            with open(full_local_path, 'w') as f:
+            with open(game_local_path, 'w') as f:
                 json.dump(json_data, f)            
         else:
             print(f'GET {full_endpoint} could not complete. Response status: {response.status_code}')
