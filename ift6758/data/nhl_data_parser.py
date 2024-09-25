@@ -1,4 +1,9 @@
 from ift6758.data.nhl_data_fetcher import NHLDataFetcher
+from ift6758.data.shared_constants import (
+    MAX_GAMES_PER_REGULAR_SEASON,
+    MATCHUPS_PER_PLAYOFF_ROUND,
+    MAX_GAMES_PER_PLAYOFF_ROUND
+)
 import json
 import pandas as pd
 
@@ -156,3 +161,51 @@ class NHLDataParser:
         shot_and_goal_plays['gameId'] = game_id
         
         return shot_and_goal_plays.drop(UNECESSARY_EXTRA_COLUMNS, axis=1)[FINAL_COLUMN_ORDER]
+
+
+    def get_shot_and_goal_pbp_df_for_season(self, season: int) -> pd.DataFrame:
+        """Transforms the raw JSON data for play-by-play events of a particular season into a tidied DataFrame.
+
+        Args:
+            season (int): Season to get the play-by-play data for.
+
+        Returns:
+            pd.DataFrame: DataFrame that contains tidied play-by-play data for the season specified.
+        """
+        season_dfs = []
+
+        # Regular season
+        for game_number in range(1, MAX_GAMES_PER_REGULAR_SEASON):
+            game_id = f'{season}02{str(game_number).zfill(4)}'
+            season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+
+        # Playoff season
+        for round_num in range(0, 4):
+            matchups = MATCHUPS_PER_PLAYOFF_ROUND[round_num]
+            for match_num in range(1, matchups + 1):
+                for game_num in range(1, MAX_GAMES_PER_PLAYOFF_ROUND + 1):
+                    game_id = f"{season}030{round_num + 1}{match_num}{game_num}"
+                    season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+
+        return pd.concat(season_dfs, ignore_index=True)
+
+
+    def get_shot_and_goal_pbp_df_for_seasons(self, start_season: int, end_season: int = 0) -> pd.DataFrame:
+        """Transforms the raw JSON data for play-by-play events across a range of seasons into a tidied DataFrame.
+
+        Args:
+            start_season (int): First season to start getting the play-by-play data for.
+            end_season (int, optional): Last season to start getting the play-by-play data for. Defaults to 0.
+
+        Returns:
+            pd.DataFrame: DataFrame that contains tidied play-by-play data for range of seasons specified.
+        """
+        all_seasons_dfs = []
+
+        if end_season == 0:
+            return self.get_shot_and_goal_pbp_df_for_season(start_season)
+        else:
+            for season in list(range(start_season, end_season + 1)):
+                all_seasons_dfs.append(self.get_shot_and_goal_pbp_df_for_season(season))
+
+        return pd.concat(all_seasons_dfs, ignore_index=True)
