@@ -1,14 +1,14 @@
+from ift6758.data.shared_constants import (
+    MAX_GAMES_PER_REGULAR_SEASON,
+    MATCHUPS_PER_PLAYOFF_ROUND,
+    MAX_GAMES_PER_PLAYOFF_ROUND
+)
 import json
 import os
 import requests
 
 API_URL = 'https://api-web.nhle.com'
 PLAY_BY_PLAY_ENDPOINT = '/v1/gamecenter/{game-id}/play-by-play'
-
-MAX_GAMES_PER_REGULAR_SEASON = 1312
-PLAYOFF_ROUNDS = 4
-MATCHUPS_PER_PLAYOFF_ROUND = [8, 4, 2, 1]
-MAX_GAMES_PER_PLAYOFF_ROUND = 7
 
 class NHLDataFetcher:
     def __init__(self):
@@ -67,9 +67,7 @@ class NHLDataFetcher:
             json_data = response.json()
 
             with open(game_local_path, 'w') as f:
-                json.dump(json_data, f)            
-        else:
-            print(f'GET {full_endpoint} could not complete. Response status: {response.status_code}')
+                json.dump(json_data, f)
 
 
     def fetch_raw_regular_season_data(self, season: int):
@@ -79,8 +77,8 @@ class NHLDataFetcher:
             season (int): Regular season to fetch the play-by-play data for.
         """
         for game_number in range(1, MAX_GAMES_PER_REGULAR_SEASON):
-                game_id = f'{season}02{str(game_number).zfill(4)}'
-                self.fetch_raw_game_data(game_id)
+            game_id = f'{season}02{str(game_number).zfill(4)}'
+            self.fetch_raw_game_data(game_id)
 
 
     def fetch_raw_playoff_season_data(self, season: int):
@@ -102,7 +100,7 @@ class NHLDataFetcher:
         An end season can also be provided to fetch data from a range of seasons.
 
         Args:
-            start_season (int): First season to start fetch the play-by-play data for.
+            start_season (int): First season to start to fetch the play-by-play data for.
             end_season (int, optional): Last season to fetch the play-by-play data for. Defaults to 0.
         """
         if end_season == 0:
@@ -112,6 +110,3 @@ class NHLDataFetcher:
             for season in list(range(start_season, end_season + 1)):
                 self.fetch_raw_regular_season_data(season)
                 self.fetch_raw_playoff_season_data(season)
-        
-        for season in list(range(start_season, end_season + 1)):
-            self.convert_seasons_to_df
