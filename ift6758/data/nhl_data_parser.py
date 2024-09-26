@@ -6,6 +6,7 @@ from ift6758.data.shared_constants import (
 )
 import json
 import pandas as pd
+import os
 
 USEFUL_EVENT_TYPES = ['shot-on-goal', 'goal']
 EVENT_TYPE_MAP = {'shot-on-goal': 0, 'goal': 1}
@@ -35,6 +36,32 @@ class NHLDataParser:
         self.data_fetcher = NHLDataFetcher()
 
     
+    def get_parsed_season(self, season: int) -> pd.DataFrame:
+        """Turns CSV of parsed season into DataFrame.
+
+        Args:
+            full_local_data_path (str): System path for the parsed local season data.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the already parsed season.
+        """
+        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, f'season_{season}.csv')
+        return pd.read_csv(full_local_data_path)
+
+
+    def season_already_parsed(self, season: int) -> bool:
+        """Checks if the season was already parsed or not.
+
+        Args:
+            season (int): Season for which we want to check if was already parsed.
+
+        Returns:
+            bool: True if season exists in local data path, false if not.
+        """
+        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, f'season_{season}.csv')
+        return os.path.exists(full_local_data_path)
+
+
     def get_team_id_name_map(self, game_data: dict) -> dict:
         """Creates a dict that maps the team ID to the team name
 
@@ -159,7 +186,7 @@ class NHLDataParser:
         shot_and_goal_plays.rename(columns={'shootingPlayerId': 'shootingPlayer', 'goalieInNetId': 'goalieInNet'}, inplace=True)
 
         shot_and_goal_plays['gameId'] = game_id
-        
+
         return shot_and_goal_plays.drop(UNECESSARY_EXTRA_COLUMNS, axis=1)[FINAL_COLUMN_ORDER]
 
 
@@ -172,6 +199,9 @@ class NHLDataParser:
         Returns:
             pd.DataFrame: DataFrame that contains tidied play-by-play data for the season specified.
         """
+        if self.season_already_parsed(season):
+            return self.get_parsed_season(season)
+        
         season_dfs = []
 
         # Regular season
@@ -193,7 +223,12 @@ class NHLDataParser:
                     except FileNotFoundError:
                         continue
 
-        return pd.concat(season_dfs, ignore_index=True)
+        season_df = pd.concat(season_dfs, ignore_index=True)
+        
+        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, f'season_{season}.csv')
+        season_df.to_csv(full_local_data_path)
+
+        return season_df
 
 
     def get_shot_and_goal_pbp_df_for_seasons(self, start_season: int, end_season: int = 0) -> pd.DataFrame:
