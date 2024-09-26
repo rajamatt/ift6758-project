@@ -67,9 +67,7 @@ class NHLDataFetcher:
             json_data = response.json()
 
             with open(game_local_path, 'w') as f:
-                json.dump(json_data, f)            
-        else:
-            print(f'GET {full_endpoint} could not complete. Response status: {response.status_code}')
+                json.dump(json_data, f)
 
 
     def fetch_raw_regular_season_data(self, season: int):

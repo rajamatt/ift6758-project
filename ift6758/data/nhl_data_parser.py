@@ -177,7 +177,10 @@ class NHLDataParser:
         # Regular season
         for game_number in range(1, MAX_GAMES_PER_REGULAR_SEASON):
             game_id = f'{season}02{str(game_number).zfill(4)}'
-            season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+            try:
+                season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+            except FileNotFoundError:
+                continue
 
         # Playoff season
         for round_num in range(0, 4):
@@ -185,7 +188,10 @@ class NHLDataParser:
             for match_num in range(1, matchups + 1):
                 for game_num in range(1, MAX_GAMES_PER_PLAYOFF_ROUND + 1):
                     game_id = f"{season}030{round_num + 1}{match_num}{game_num}"
-                    season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+                    try:
+                        season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+                    except FileNotFoundError:
+                        continue
 
         return pd.concat(season_dfs, ignore_index=True)
 
