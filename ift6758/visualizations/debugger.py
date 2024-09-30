@@ -86,7 +86,7 @@ class debugger:
         #Load the JSON file into python
         game_data = []
         with open(self.data_fetcher.get_game_local_path(game_id), 'r') as file:
-                game_data = json.load(file)
+            game_data = json.load(file)
 
         #Extract Game Info
         self.venue = game_data['venue']['default']
