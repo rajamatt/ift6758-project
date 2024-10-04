@@ -5,8 +5,9 @@ from ift6758.data.shared_constants import (
     MAX_GAMES_PER_PLAYOFF_ROUND
 )
 import json
-import pandas as pd
+from math import sqrt
 import os
+import pandas as pd
 
 USEFUL_EVENT_TYPES = ['shot-on-goal', 'goal']
 EVENT_TYPE_MAP = {'shot-on-goal': 0, 'goal': 1}
@@ -26,7 +27,10 @@ FINAL_COLUMN_ORDER = [
     'shotType',
     'xCoord',
     'yCoord',
+    'zoneCode',
     'shootingTeam',
+    'shotDistance',
+    'shootingTeamSide',
     'shootingPlayer',
     'goalieInNet'
     ]
@@ -119,6 +123,61 @@ class NHLDataParser:
             df[col] = df['details'].apply(lambda x: x.get(col))
         
         return df
+    
+
+    def get_shooting_team_side_during_p1(self, df: pd.DataFrame) -> tuple:
+        """Gets the shooting team and their side (left or right) during the first period of play
+
+        Args:
+            df (pd.DataFrame): The play-by-play shot DataFrame
+
+        Returns:
+            tuple: The shooting team's name and their starting side (shooting team: str, side: {0, 1})
+        """
+        shooting_team = None
+        shooting_team_net_side_p1 = None
+        
+        for _, row in df.iterrows():
+            if row['periodNumber'] == 1:
+                zone_code = row['zoneCode']
+                x_coord = row['xCoord']
+
+                if zone_code == 'O':
+                    shooting_team = row['shootingTeam']
+
+                    if x_coord < 0:
+                        shooting_team_net_side_p1 = 1
+                    elif x_coord > 0:
+                        shooting_team_net_side_p1 = 0
+                elif zone_code == 'D':
+                    shooting_team = row['shootingTeam']
+
+                    if x_coord < 0:
+                        shooting_team_net_side_p1 = 0
+                    elif x_coord > 0:
+                        shooting_team_net_side_p1 = 1
+
+                if shooting_team is not None and shooting_team_net_side_p1 is not None:
+                    break
+
+        return shooting_team, shooting_team_net_side_p1
+    
+
+    def calculate_shot_distance(self, xCoord: int, yCoord: int, net_coords: tuple) -> float:
+        """Calculates the euclidian distance between (xCoord, yCoord) and net_coords
+
+        Args:
+            xCoord (int): The x coordinate of the first point
+            yCoord (int): The y coordinate of the first point
+            net_coords (tuple): The (x,y) coordinates of the net
+
+        Returns:
+            float: The floating value distance between the first point and the net coordinates
+        """
+        x_net, y_net = net_coords
+        distance = sqrt((xCoord - x_net) ** 2 + (yCoord - y_net) ** 2)
+
+        return distance
 
 
     def get_shot_and_goal_pbp_df(self, game_id: str) -> pd.DataFrame:
@@ -138,7 +197,7 @@ class NHLDataParser:
         - Shot or goal (0: shot, 1: goal)
         - Shot type
         - On-ice coords
-        - TODO Strength (0: even, 1: shorthanded, 2: power-play)
+        - Distance from net (ft)
         - Shooter team
         - Shooter name
         - Goalie name (None if empty net)
@@ -160,6 +219,8 @@ class NHLDataParser:
 
         shot_and_goal_plays = self.extract_period_info(shot_and_goal_plays)
         shot_and_goal_plays = self.extract_shot_and_goal_info(shot_and_goal_plays)
+
+        shot_and_goal_plays['zoneCode'] = shot_and_goal_plays['details'].apply(lambda x: x.get('zoneCode'))
 
         shot_and_goal_plays['shootingPlayerId'] = shot_and_goal_plays.apply(
             lambda row: row['details'].get('scoringPlayerId') if row['eventType'] == 1
@@ -184,6 +245,36 @@ class NHLDataParser:
         shot_and_goal_plays['goalieInNetId'] = self.map_columns(shot_and_goal_plays, 'goalieInNetId', player_name_map)
 
         shot_and_goal_plays.rename(columns={'shootingPlayerId': 'shootingPlayer', 'goalieInNetId': 'goalieInNet'}, inplace=True)
+
+        shot_and_goal_plays['shootingTeamSide'] = None
+        first_shooting_team, first_shooting_team_net_side_p1 = self.get_shooting_team_side_during_p1(shot_and_goal_plays)
+
+        for index, row in shot_and_goal_plays.iterrows():
+            period = row['periodNumber']
+            
+            if period % 2 == 1: # period is odd (first team is on their starting side)
+                if first_shooting_team == row['shootingTeam']:
+                    shot_and_goal_plays.at[index, 'shootingTeamSide'] = first_shooting_team_net_side_p1
+                else:
+                    shot_and_goal_plays.at[index, 'shootingTeamSide'] = 1 - first_shooting_team_net_side_p1
+            else: # period is even (first team is on their opposite to starting side)
+                if first_shooting_team == row['shootingTeam']:
+                    shot_and_goal_plays.at[index, 'shootingTeamSide'] = 1 - first_shooting_team_net_side_p1
+                else:
+                    shot_and_goal_plays.at[index, 'shootingTeamSide'] = first_shooting_team_net_side_p1
+
+        shot_and_goal_plays['shotDistance'] = None
+
+        for index, row in shot_and_goal_plays.iterrows():
+            shooting_on_net_side = 1 - row['shootingTeamSide'] # the side of the rink the where the net the shooter is shooting onto
+
+            net_coords = None
+            if shooting_on_net_side == 0:
+                net_coords = (-89, 0)
+            else:
+                net_coords = (89, 0)
+            
+            shot_and_goal_plays.at[index, 'shotDistance'] = self.calculate_shot_distance(row['xCoord'], row['yCoord'], net_coords)
 
         shot_and_goal_plays['gameId'] = game_id
 
