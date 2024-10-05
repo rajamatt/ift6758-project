@@ -317,7 +317,7 @@ class NHLDataParser:
         season_df = pd.concat(season_dfs, ignore_index=True)
         
         full_local_data_path = os.path.join(self.data_fetcher.local_data_path, f'season_{season}.csv')
-        season_df.to_csv(full_local_data_path)
+        season_df.to_csv(full_local_data_path,index=False)
 
         return season_df
 
