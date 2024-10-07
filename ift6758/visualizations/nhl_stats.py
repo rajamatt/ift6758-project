@@ -10,7 +10,7 @@ class NHLStats:
     
     def plot_shot_type_distribution(self,start_season:int,end_season:int = 0):
         """Plots the Distrbution of Shot Types over a range of seasons. 
-        Plots for one season if start_season = end_season or id end_season = default value
+        Plots for one season if start_season = end_season or if end_season = default value
         
         ARGS:
         start_season (int): First season in range to plot 
@@ -30,7 +30,7 @@ class NHLStats:
 
     def plot_shot_distance_distribution(self,start_season:int,end_season:int = 0,by_type=False,by_goal=False):
         """Plots the Distribution of Shot Distance over a range of seasons.
-        Plots for one season if start_season = end_season or id end_season = default value
+        Plots for one season if start_season = end_season or if end_season = default value
         
         ARGS:
         start_season (int): First season to start getting the play-by-play data for.
@@ -54,7 +54,7 @@ class NHLStats:
 
     def plot_shot_distance_probability(self,start_season:int,end_season:int=0,bin_width:float=1,norm:bool=False):
         """Plots the probability of a Shot being a goal vs Distance over a range of seasons.
-        Plots for one season if start_season = end_season or id end_season = default value
+        Plots for one season if start_season = end_season or if end_season = default value
         
         ARGS:
         start_season (int): First season to start getting the play-by-play data for.
@@ -87,8 +87,8 @@ class NHLStats:
             plt.suptitle(f"Goal Probability vs Shot Distance ({start_season}-{end_season})",fontsize='medium')
 
     def plot_shot_distance_type_probability(self,start_season:int,end_season:int=0,bin_width:float=1,shot_types:list=None,norm:bool=True):
-        """Plots the probability/percentage of a Shot being a goal vs Distance over a range of seasons.
-        Plots for one season if start_season = end_season or id end_season = default value
+        """Plots the probability/percentage of a Shot being a goal vs Distance for different shot types over a range of seasons.
+        Plots for one season if start_season = end_season or if end_season = default value
             
         ARGS:
         start_season (int): First season to start getting the play-by-play data for.
