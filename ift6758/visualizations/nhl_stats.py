@@ -17,7 +17,7 @@ class NHLStats:
         end_season (int, optional): Last season in range to plot. Defaults to 0.
         """
         df = self.data_parser.get_shot_and_goal_pbp_df_for_seasons(start_season,end_season)
-        shot_counts = sns.countplot(x='shotType',data=df,hue='eventType',order=df['shotType'].value_counts().index)
+        shot_counts = sns.countplot(x='shotType',data=df,hue='isGoal',order=df['shotType'].value_counts().index)
         plt.legend(title='Outcome', loc='center right', labels=['No Goal', 'Goal'])
         plt.xticks(rotation=90)
         if end_season==0 or start_season==end_season:
@@ -43,7 +43,7 @@ class NHLStats:
         if by_type:
             hue ='shotType'
         if by_goal:
-            col = 'eventType'
+            col = 'isGoal'
         df = self.data_parser.get_shot_and_goal_pbp_df_for_seasons(start_season,end_season)
         sns.displot(df,x="shotDistance",kind='hist',hue=hue,col=col,kde=True,binwidth =2,element='step')
         plt.xlabel('Shot Distance (feet)')
@@ -73,7 +73,7 @@ class NHLStats:
                 shot_count = df.shape[0]
             else:
                 shot_count = df_bin.shape[0]
-            goal_count = sum(df_bin['eventType']==1)
+            goal_count = sum(df_bin['isGoal']==1)
             if shot_count != 0:
                 bin_probabilty.append(goal_count/shot_count)
             else:
@@ -112,7 +112,7 @@ class NHLStats:
                         shot_count = df.shape[0]
                     else:
                         shot_count = df_bin.shape[0]
-                    goal_count = sum(df_bin['eventType']==1)
+                    goal_count = sum(df_bin['isGoal']==1)
                     if shot_count != 0:
                         bin_probabilty.append(goal_count/shot_count)
                     else:
