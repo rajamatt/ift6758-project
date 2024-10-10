@@ -16,11 +16,11 @@ class NHLEventMapper:
     def event_summary(self,plays:dict,n_event:int,home_team:'str',away_team:'str'):
         """Displays play/event specific information for a specific game
 
-        ARGS:
-            home_team(str): Abbreviation for Home Team
-            away_team(str): Abbreviation for Away Team
-            plays(dict): the play by play data from the JSON file as a dictonary
-            n_event(int): The event id of the play/event being inspected
+        Args:
+            home_team (str): Abbreviation for Home Team
+            away_team (str): Abbreviation for Away Team
+            plays (dict): The play by play data from the JSON file as a dictonary
+            n_event (int): The event id of the play/event being inspected
         """
         #Extract Info about the play
         play = plays[n_event-1]
@@ -41,7 +41,7 @@ class NHLEventMapper:
         grid[1,3]= widgets.HTML(value =play_period_time)
         display(grid)
         
-        #Pre 2019 the JSON Files did not specify which side the teams where on for each play
+        # Pre 2019 the JSON Files did not specify which side the teams where on for each play
         if 'homeTeamDefendingSide' in play.keys():
             play_homeside = play['homeTeamDefendingSide']
             if play_homeside == 'right':
@@ -51,7 +51,7 @@ class NHLEventMapper:
                 plt.text(37.5, 0, away_team, fontsize = 10, bbox = dict(facecolor = 'blue', alpha = 0.5))
                 plt.text(-50, 0, home_team, fontsize = 10, bbox = dict(facecolor = 'red', alpha = 0.5))
         
-        #Display Rink Image with coordinates of play. If there are none, just display the image
+        # Display Rink Image with coordinates of play. If there are none, just display the image
         rink_image = image.imread(self.rink_image_path)
         plt.imshow(rink_image,extent=[-100,100,-42.5,42.5])
         plt.xticks(np.linspace(-100,100,9))
@@ -65,12 +65,13 @@ class NHLEventMapper:
                 plt.plot(x,y, marker='o', color="purple",markersize = 10) 
         
     
-    def summary(self,season:int,type:str,n_game:int)-> dict:
-        """Displays a summary of the Game Information:
-        ARGS:
-            season(int): The season of the NHL
-            type(str):'regular' or 'playoff 
-            n_game(int): game number (max possible: 1312)
+    def summary(self,season:int,type:str,n_game:int):
+        """Displays a summary of the game information
+
+        Args:
+            season (int): The season of the NHL
+            type (str): 'regular' or 'playoff' 
+            n_game (int): game number (max possible: 1312)
         """
         #Create gameid from given info
         if type == 'regular':
@@ -110,5 +111,4 @@ class NHLEventMapper:
         #Extract play by play data and run a widget over the max number of plays =length of play by play data
         plays_data = game_data['plays']
         widgets.interact(self.event_summary,plays=widgets.fixed(plays_data),n_event= (1,len(plays_data),1),home_team= widgets.fixed(home_team) , away_team = widgets.fixed(away_team))
-        
-        return 
+ 
