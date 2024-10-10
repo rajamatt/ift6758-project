@@ -1,9 +1,8 @@
 from ift6758.data.nhl_data_fetcher import NHLDataFetcher
-from matplotlib import image 
-from matplotlib import pyplot as plt 
+from matplotlib import image, pyplot as plt
 from IPython.display import display
-import json
 from ipywidgets import widgets
+import json
 import os
 import numpy as np
 
