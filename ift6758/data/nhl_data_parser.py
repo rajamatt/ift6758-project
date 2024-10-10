@@ -1,4 +1,5 @@
 from ift6758.data.nhl_data_fetcher import NHLDataFetcher
+from ift6758.data.nhl_helper import NHLHelper
 from ift6758.data.shared_constants import (
     MAX_GAMES_PER_REGULAR_SEASON,
     MATCHUPS_PER_PLAYOFF_ROUND,
@@ -37,6 +38,7 @@ FINAL_COLUMN_ORDER = [
 class NHLDataParser:
     def __init__(self):
         self.data_fetcher = NHLDataFetcher()
+        self.helper = NHLHelper()
 
     
     def raw_season_data_to_df(self, season: int) -> pd.DataFrame:
@@ -283,23 +285,18 @@ class NHLDataParser:
         season_dfs = []
 
         # Regular season
-        for game_number in range(1, MAX_GAMES_PER_REGULAR_SEASON):
-            game_id = f'{season}02{str(game_number).zfill(4)}'
+        for game_id in self.helper.get_game_ids_for_season(season, True):
             try:
                 season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
             except FileNotFoundError:
                 continue
 
         # Playoff season
-        for round_num in range(0, 4):
-            matchups = MATCHUPS_PER_PLAYOFF_ROUND[round_num]
-            for match_num in range(1, matchups + 1):
-                for game_num in range(1, MAX_GAMES_PER_PLAYOFF_ROUND + 1):
-                    game_id = f"{season}030{round_num + 1}{match_num}{game_num}"
-                    try:
-                        season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
-                    except FileNotFoundError:
-                        continue
+        for game_id in self.helper.get_game_ids_for_season(season, False):
+            try:
+                season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+            except FileNotFoundError:
+                continue
 
         season_df = pd.concat(season_dfs, ignore_index=True)
         
