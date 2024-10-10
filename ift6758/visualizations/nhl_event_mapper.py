@@ -1,4 +1,5 @@
 from ift6758.data.nhl_data_fetcher import NHLDataFetcher
+from ift6758.data.nhl_helper import NHLHelper
 from matplotlib import image, pyplot as plt
 from IPython.display import display
 from ipywidgets import widgets
@@ -9,8 +10,10 @@ import numpy as np
 class NHLEventMapper:
     def __init__(self):
         self.data_fetcher = NHLDataFetcher()
+        self.helper = NHLHelper()
         self.local_data_path = os.getenv('RINK_IMG_PATH')
         self.rink_image_path = os.path.join(self.local_data_path, f'nhl_rink.png')
+
 
     def event_summary(self,plays:dict,n_event:int,home_team:'str',away_team:'str'):
         """Displays play/event specific information for a specific game
@@ -73,9 +76,10 @@ class NHLEventMapper:
             n_game (int): game number (max possible: 1312)
         """
         #Create gameid from given info
+        game_id = None
+
         if type == 'regular':
-            game_id = f'{season}02{str(n_game).zfill(4)}'
-            
+            game_id = self.helper.construct_regular_season_game_id(season, n_game)
         else:
             display('under construction')
 
