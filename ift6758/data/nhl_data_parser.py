@@ -218,13 +218,13 @@ class NHLDataParser:
         shot_and_goal_plays['zoneCode'] = shot_and_goal_plays['details'].apply(lambda x: x.get('zoneCode'))
 
         shot_and_goal_plays['shootingPlayerId'] = shot_and_goal_plays.apply(
-            lambda row: row['details'].get('scoringPlayerId') if row['isGoal'] == 1
-                else row['details'].get('shootingPlayerId'),
+            lambda event: event['details'].get('scoringPlayerId') if event['isGoal'] == 1
+                else event['details'].get('shootingPlayerId'),
             axis=1
         )
 
         player_name_map = rosters.set_index('playerId').apply(
-            lambda row: f"{row['firstName']['default']} {row['lastName']['default']}",
+            lambda p: f"{p['firstName']['default']} {p['lastName']['default']}",
             axis=1
         ).to_dict()
 
