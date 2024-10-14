@@ -145,6 +145,7 @@ class NHLEventMapper:
     def display_game_summary(self, game_data: dict):
         self.game_info_output.clear_output(True)
 
+        date = game_data['gameDate']
         venue = game_data['venue']['default']
         home_team = game_data['homeTeam']['abbrev']
         away_team = game_data['awayTeam']['abbrev']
@@ -152,6 +153,7 @@ class NHLEventMapper:
         away_score = game_data['awayTeam']['score']
 
         with self.game_info_output:
+            display(widgets.HTML(value=date))
             display(widgets.HTML(value=f"Venue: {venue}"))
 
         grid = widgets.GridspecLayout(3, 3, grid_gap='0', width='20%', align_items='center')
