@@ -3,6 +3,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+season_range = [2016,2017,2018,2019,2020,2021,2022,2023]
+shot_types = ['wrist', 'slap', 'backhand', 'snap', 'tip-in', 'deflected','wrap-around','poke', 'bat', 'between-legs', 'cradle']
+team_list = ['Lightning', 'Penguins', 'Kraken', 'Golden Knights', 'Canadiens','Maple Leafs', 'Rangers', 'Capitals', 'Avalanche', 'Blackhawks',
+             'Canucks', 'Oilers', 'Sabres', 'Senators', 'Red Wings', 'Panthers','Stars', 'Islanders', 'Hurricanes', 'Blue Jackets', 'Coyotes',
+             'Predators', 'Jets', 'Ducks', 'Kings', 'Devils', 'Flyers', 'Wild','Bruins', 'Blues', 'Flames', 'Sharks']
 
 class NHLStats:
     def __init__(self):
@@ -128,5 +135,59 @@ class NHLStats:
                 plt.suptitle(f"Goal Percentage vs Shot Distance ({start_season}-{end_season})",fontsize='medium')
         else:
             self.plot_shot_distance_probability(start_season,end_season,bin_width,norm=norm)
+        
+    def plot_shot_team_rate(self,season:int,team:str)-> tuple[pd.DataFrame,go.Figure]:
+        """Plots the excess shot rate per hour in the offensive zone for a team based on location over a regular season of NHL 
+        ARGS:
+        season (int): The season to consider for the statistics
+        team (str): The team to plot for
+        
+        RETURNS:
+        pd.Dataframe: Data frame with excess shot rate for all the teams and league average shot rate by lcoation
+        go.Figure: The plotly figure object with the plot details"""
+        
+
+        df = self.data_parser.get_shot_and_goal_pbp_df_for_seasons(season)
+
+        #Filter The dataframe for the regular season.
+        df = df[df['gameId'].apply(lambda x: str(x)[5]=='2')]
+
+        #Filter the dataframe to consider only the offensive zone stats
+        df = df[df['zoneCode']=='O']
+
+        #Mirror the coordinates of the shots for one side of the field to get all coordinates in one half of the field
+        df.loc[df['xCoord']<0,'yCoord']=-df.loc[df['xCoord']<0,'yCoord']
+        df.loc[:,'xCoord']=df.loc[:,'xCoord'].abs()
+
+        #Group the shots by location
+        df_shot_loc = df.groupby(['xCoord','yCoord']).size().reset_index().rename(columns={0:'league_ShotCount'})
+
+        #Calculate shot rate per hour for each team over the coordinates    
+        for name in team_list:
+            df_team = df[df['shootingTeam']==name]
+            df_team_loc = df_team.groupby(['xCoord','yCoord']).size().reset_index().rename(columns={0:name})
+            df_team_loc[name] = df_team_loc[name].div(82)
+            df_shot_loc=pd.merge(left=df_shot_loc,right=df_team_loc,how='left',on=['xCoord','yCoord'])
+            df_shot_loc[name] = df_shot_loc[name].fillna(0)
+        
+        #Calculate League Average Shot Rate over the coordinates 
+        df_shot_loc['league_shotRate']=df_shot_loc[team_list].sum(axis=1)/32
+
+        #Calculate the difference in shot rate per hour for all teams over the coordinates
+        for name in team_list:
+            df_shot_loc[name]=df_shot_loc[name].sub(df_shot_loc['league_shotRate'])
+        
+        #Plot the density contours for the chosen team
+        fig = go.Figure(go.Histogram2dContour(x = df_shot_loc['xCoord'],
+                                        y = df_shot_loc['yCoord'],
+                                        z = df_shot_loc[team],
+                                        colorscale = 'RdBu',
+                                        histfunc='sum',
+                                        xbins=dict(size=10),
+                                        ybins=dict(size=10),
+                                        contours=dict(start=-1,end=1,size=0.1)
+                                        ))
+        fig.show()
+        return df_shot_loc,fig
         
     
