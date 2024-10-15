@@ -19,6 +19,9 @@ class NHLEventMapper:
         self.game_info_output = widgets.Output()
         self.event_output = widgets.Output()
 
+        self.first_team_to_shoot = None
+        self.first_team_to_shoot_side_during_p1 = None # 0: left, 1: right
+
 
     def get_general_output(self):
         return self.general_output
@@ -30,9 +33,76 @@ class NHLEventMapper:
 
     def get_event_output(self):
         return self.event_output
+    
+
+    def get_shooting_team(self, game_data: dict, shooting_player_id: str):
+        """Gets the shooting team based on the player's ID from the play data.
+
+        Args:
+            game_data (dict): The game data containing roster spots and team info.
+            play (dict): The play data containing either shootingPlayerId or scoringPlayerId.
+
+        Returns:
+            str: The abbreviation of the shooting team.
+        """
+        if shooting_player_id is None:
+            return None  # No shooting player found
+
+        # Find the associated teamId from rosterSpots
+        team_id = None
+        for roster_spot in game_data['rosterSpots']:
+            if roster_spot['playerId'] == shooting_player_id:
+                team_id = roster_spot['teamId']
+                break
+
+        if team_id is None:
+            return None  # No team found for this player
+
+        # Check if the teamId matches either the homeTeam or awayTeam
+        if team_id == game_data['homeTeam']['id']:
+            return game_data['homeTeam']['abbrev']
+        elif team_id == game_data['awayTeam']['id']:
+            return game_data['awayTeam']['abbrev']
+
+        return None  # Team not found
 
 
-    def event_summary(self, plays: dict, n_event: int, home_team: str, away_team: str):
+    def __get_shooting_team_side_during_p1(self, game_data: dict):
+        """Gets the shooting team and their side (left or right) during the first period of play.
+
+        Args:
+            game_data (dict): The game data containing play-by-play information in JSON format.
+        """
+        for play in game_data['plays']:
+            period_number = play['periodDescriptor']['number']
+            type_desc_key = play.get('typeDescKey', '')
+            zone_code = play.get('details', {}).get('zoneCode', '')
+
+            # Check for the first event in period 1 with a goal or shot-on-goal in offensive or defensive zone
+            if period_number == 1 and (type_desc_key in ['goal', 'shot-on-goal']) and (zone_code in ['O', 'D']):
+                # Get xCoord to determine the shooting team's net side
+                x_coord = play.get('details', {}).get('xCoord', None)
+
+                # Determine shooting team abbreviation
+                shooting_player_id = play.get('details', {}).get('shootingPlayerId') or play.get('details', {}).get('scoringPlayerId')
+                shooting_team = self.get_shooting_team(game_data, shooting_player_id)  # New method to get team abbreviation
+
+                if zone_code == 'O':
+                    if x_coord < 0:
+                        shooting_team_net_side_p1 = 1
+                    else:
+                        shooting_team_net_side_p1 = 0
+                if zone_code == 'D':
+                    if x_coord < 0:
+                        shooting_team_net_side_p1 = 0
+                    else:
+                        shooting_team_net_side_p1 = 1
+                
+                self.first_team_to_shoot = shooting_team
+                self.first_team_to_shoot_side_during_p1 = shooting_team_net_side_p1
+
+
+    def event_summary(self, game_data: dict, n_event: int, home_team: str, away_team: str):
         """Displays play/event specific information for a specific game
 
         Args:
@@ -44,7 +114,7 @@ class NHLEventMapper:
         self.event_output.clear_output(True)
 
         # Extract Info about the play
-        play = plays[n_event-1]
+        play = game_data['plays'][n_event-1]
         play_type = play['typeDescKey']
         play_period =play['periodDescriptor']['number']
         play_period_type = play['periodDescriptor']['periodType']
@@ -64,16 +134,29 @@ class NHLEventMapper:
         with self.event_output:
             display(grid)
         
-        # Pre 2019 the JSON Files did not specify which side the teams where on for each play
-        if 'homeTeamDefendingSide' in play.keys():
-            play_homeside = play['homeTeamDefendingSide']
-            if play_homeside == 'right':
-                plt.text(37.5, 0, home_team, fontsize = 10, bbox = dict(facecolor = 'red', alpha = 0.5))
-                plt.text(-50, 0, away_team, fontsize = 10, bbox = dict(facecolor = 'blue', alpha = 0.5))
+        if self.first_team_to_shoot is not home_team and self.first_team_to_shoot is not away_team:
+            self.__get_shooting_team_side_during_p1(game_data)
+
+        if self.first_team_to_shoot == home_team:
+            other_team = away_team
+        else:
+            other_team = home_team
+
+        if play_period % 2 == 0:
+            if self.first_team_to_shoot_side_during_p1 == 1:
+                plt.text(-50, 0, self.first_team_to_shoot, fontsize=10, bbox=dict(facecolor='blue', alpha=0.5))
+                plt.text(37.5, 0, other_team, fontsize=10, bbox=dict(facecolor='red', alpha=0.5))
             else:
-                plt.text(37.5, 0, away_team, fontsize = 10, bbox = dict(facecolor = 'blue', alpha = 0.5))
-                plt.text(-50, 0, home_team, fontsize = 10, bbox = dict(facecolor = 'red', alpha = 0.5))
-        
+                plt.text(-50, 0, other_team, fontsize=10, bbox=dict(facecolor='red', alpha=0.5))
+                plt.text(37.5, 0, self.first_team_to_shoot, fontsize=10, bbox=dict(facecolor='blue', alpha=0.5))
+        else:
+            if self.first_team_to_shoot_side_during_p1 == 1:
+                plt.text(-50, 0, other_team, fontsize=10, bbox=dict(facecolor='red', alpha=0.5))
+                plt.text(37.5, 0, self.first_team_to_shoot, fontsize=10, bbox=dict(facecolor='blue', alpha=0.5))
+            else:
+                plt.text(-50, 0, self.first_team_to_shoot, fontsize=10, bbox=dict(facecolor='blue', alpha=0.5))
+                plt.text(37.5, 0, other_team, fontsize=10, bbox=dict(facecolor='red', alpha=0.5))
+
         # Display Rink Image with coordinates of play. If there are none, just display the image
         rink_image = image.imread(self.rink_image_path)
         plt.imshow(rink_image,extent=[-100,100,-42.5,42.5])
@@ -169,11 +252,10 @@ class NHLEventMapper:
             display(grid)
 
         # Event summary interaction
-        plays_data = game_data['plays']
         w = widgets.interactive(
             self.event_summary,
-            plays=widgets.fixed(plays_data),
-            n_event=widgets.IntSlider(min=1, max=len(plays_data), description='Event'),
+            game_data=widgets.fixed(game_data),
+            n_event=widgets.IntSlider(min=1, max=len(game_data['plays']), description='Event'),
             home_team=widgets.fixed(home_team),
             away_team=widgets.fixed(away_team)
         )
