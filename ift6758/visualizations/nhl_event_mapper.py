@@ -23,27 +23,27 @@ class NHLEventMapper:
         self.first_team_to_shoot_side_during_p1 = None # 0: left, 1: right
 
 
-    def get_general_output(self):
+    def get_general_output(self) -> widgets.Output:
         return self.general_output
     
 
-    def get_game_info_output(self):
+    def get_game_info_output(self) -> widgets.Output:
         return self.game_info_output
 
 
-    def get_event_output(self):
+    def get_event_output(self) -> widgets.Output:
         return self.event_output
     
 
-    def get_shooting_team(self, game_data: dict, shooting_player_id: str):
-        """Gets the shooting team based on the player's ID from the play data.
+    def get_shooting_team(self, game_data: dict, shooting_player_id: str) -> str:
+        """Gets the shooting team's name abbreviation based on the shooting player's ID.
 
         Args:
-            game_data (dict): The game data containing roster spots and team info.
-            play (dict): The play data containing either shootingPlayerId or scoringPlayerId.
+            game_data (dict): Game data containing roster spots and team info.
+            shooting_player_id (str): Shooting or scoring player's ID.
 
         Returns:
-            str: The abbreviation of the shooting team.
+            str: Abbreviation of the shooting team's name.
         """
         team_id = None
 
@@ -60,8 +60,8 @@ class NHLEventMapper:
         return None
 
 
-    def __get_shooting_team_side_during_p1(self, game_data: dict):
-        """Gets the shooting team and their side (left or right) during the first period of play.
+    def __set_shooting_team_side_during_p1(self, game_data: dict):
+        """Sets the shooting team and their side (left or right) during the first period of play.
 
         Args:
             game_data (dict): The game data containing play-by-play information in JSON format.
@@ -78,15 +78,9 @@ class NHLEventMapper:
                 shooting_team = self.get_shooting_team(game_data, shooting_player_id)
 
                 if zone_code == 'O':
-                    if x_coord < 0:
-                        shooting_team_net_side_p1 = 1
-                    else:
-                        shooting_team_net_side_p1 = 0
-                if zone_code == 'D':
-                    if x_coord < 0:
-                        shooting_team_net_side_p1 = 0
-                    else:
-                        shooting_team_net_side_p1 = 1
+                    shooting_team_net_side_p1 = 1 if x_coord < 0 else 0
+                else:
+                    shooting_team_net_side_p1 = 0 if x_coord < 0 else 1
                 
                 self.first_team_to_shoot = shooting_team
                 self.first_team_to_shoot_side_during_p1 = shooting_team_net_side_p1
@@ -98,7 +92,7 @@ class NHLEventMapper:
         Args:
             home_team (str): Abbreviation for Home Team
             away_team (str): Abbreviation for Away Team
-            plays (dict): The play by play data from the JSON file as a dictonary
+            game_data (dict): The raw game data from the JSON file as a dictonary
             n_event (int): The event id of the play/event being inspected
         """
         self.event_output.clear_output(True)
@@ -125,7 +119,7 @@ class NHLEventMapper:
             display(grid)
         
         if self.first_team_to_shoot is not home_team and self.first_team_to_shoot is not away_team:
-            self.__get_shooting_team_side_during_p1(game_data)
+            self.__set_shooting_team_side_during_p1(game_data)
 
         if self.first_team_to_shoot == home_team:
             other_team = away_team
@@ -165,6 +159,11 @@ class NHLEventMapper:
         
 
     def __display_game_number_error(self, n_game: int):
+        """Displays an error relating to the game with specific number not being found.
+
+        Args:
+            n_game (int): Game number that wasn't found.
+        """
         with self.game_info_output:
             self.game_info_output.clear_output()
             error_text = f"Game {n_game} couldn't be found. Please select a different game."
@@ -216,6 +215,11 @@ class NHLEventMapper:
 
 
     def display_game_summary(self, game_data: dict):
+        """Displays a summary for an NHL game.
+
+        Args:
+            game_data (dict): Raw game data in JSON format as a dictionary.
+        """
         self.game_info_output.clear_output(True)
 
         date = game_data['gameDate']
@@ -255,6 +259,12 @@ class NHLEventMapper:
 
 
     def update_widgets(self, season_type: str, season: int):
+        """Updates the widgets in the output depending on season type.
+
+        Args:
+            season_type (str): 'Regular season' or 'Playoffs'
+            season (int): Season year
+        """
         self.general_output.clear_output(True)
 
         if season_type == 'Regular season':

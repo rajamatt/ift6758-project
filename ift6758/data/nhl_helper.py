@@ -9,7 +9,7 @@ class NHLHelper:
         """Generates a list of game IDs for a season in the NHL
 
         Args:
-            season (str): Season number
+            season (str): Season year
             for_regular_season (bool): Regular season: True or playoff season: False
 
         Returns:
@@ -39,7 +39,7 @@ class NHLHelper:
         """Generates game ID string for a regular season NHL game
 
         Args:
-            season (str): Season number
+            season (str): Season year
             game (int): Game number (max in 2024 is 1312)
 
         Returns:
@@ -53,7 +53,7 @@ class NHLHelper:
         """Generates game ID string for a playoff NHL game
 
         Args:
-            season (str): Season number
+            season (str): Season year
             round (int): Round number (round 1 has 8 matchups, round 2 has 4 matchups, ...)
             matchup (int): Matchup number
             game (int): Game number (a specific matchup has a maximum of 7 games)
