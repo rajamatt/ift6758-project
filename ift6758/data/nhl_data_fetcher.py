@@ -1,8 +1,8 @@
 from ift6758.data.shared_constants import (
-    MAX_GAMES_PER_REGULAR_SEASON,
     MATCHUPS_PER_PLAYOFF_ROUND,
     MAX_GAMES_PER_PLAYOFF_ROUND
 )
+from ift6758.data.nhl_helper import NHLHelper
 import json
 import os
 import requests
@@ -12,6 +12,7 @@ PLAY_BY_PLAY_ENDPOINT = '/v1/gamecenter/{game-id}/play-by-play'
 
 class NHLDataFetcher:
     def __init__(self):
+        self.helper = NHLHelper()
         self.local_data_path = os.getenv('NHL_DATA_PATH')
         os.makedirs(self.local_data_path, exist_ok=True)
 
@@ -76,8 +77,7 @@ class NHLDataFetcher:
         Args:
             season (int): Regular season to fetch the play-by-play data for.
         """
-        for game_number in range(1, MAX_GAMES_PER_REGULAR_SEASON):
-            game_id = f'{season}02{str(game_number).zfill(4)}'
+        for game_id in self.helper.get_game_ids_for_season(season, True):
             self.fetch_raw_game_data(game_id)
 
 
@@ -87,12 +87,8 @@ class NHLDataFetcher:
         Args:
             season (int): Playoff season to fetch the play-by-play data for.
         """
-        for round_num in range(0, 4):
-            matchups = MATCHUPS_PER_PLAYOFF_ROUND[round_num]
-            for match_num in range(1, matchups + 1):
-                for game_num in range(1, MAX_GAMES_PER_PLAYOFF_ROUND + 1):
-                    game_id = f"{season}030{round_num + 1}{match_num}{game_num}"
-                    self.fetch_raw_game_data(game_id)
+        for game_id in self.helper.get_game_ids_for_season(season, False):
+            self.fetch_raw_game_data(game_id)
 
 
     def fetch_raw_season_data(self, start_season: int, end_season: int = 0):
