@@ -45,26 +45,19 @@ class NHLEventMapper:
         Returns:
             str: The abbreviation of the shooting team.
         """
-        if shooting_player_id is None:
-            return None  # No shooting player found
-
-        # Find the associated teamId from rosterSpots
         team_id = None
+
         for roster_spot in game_data['rosterSpots']:
             if roster_spot['playerId'] == shooting_player_id:
                 team_id = roster_spot['teamId']
                 break
 
-        if team_id is None:
-            return None  # No team found for this player
-
-        # Check if the teamId matches either the homeTeam or awayTeam
         if team_id == game_data['homeTeam']['id']:
             return game_data['homeTeam']['abbrev']
         elif team_id == game_data['awayTeam']['id']:
             return game_data['awayTeam']['abbrev']
 
-        return None  # Team not found
+        return None
 
 
     def __get_shooting_team_side_during_p1(self, game_data: dict):
@@ -78,14 +71,11 @@ class NHLEventMapper:
             type_desc_key = play.get('typeDescKey', '')
             zone_code = play.get('details', {}).get('zoneCode', '')
 
-            # Check for the first event in period 1 with a goal or shot-on-goal in offensive or defensive zone
             if period_number == 1 and (type_desc_key in ['goal', 'shot-on-goal']) and (zone_code in ['O', 'D']):
-                # Get xCoord to determine the shooting team's net side
                 x_coord = play.get('details', {}).get('xCoord', None)
 
-                # Determine shooting team abbreviation
                 shooting_player_id = play.get('details', {}).get('shootingPlayerId') or play.get('details', {}).get('scoringPlayerId')
-                shooting_team = self.get_shooting_team(game_data, shooting_player_id)  # New method to get team abbreviation
+                shooting_team = self.get_shooting_team(game_data, shooting_player_id)
 
                 if zone_code == 'O':
                     if x_coord < 0:
