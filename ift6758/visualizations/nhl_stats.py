@@ -153,7 +153,7 @@ class NHLStats:
         df = df[df['gameId'].apply(lambda x: str(x)[5]=='2')]
 
         #Filter the dataframe to consider only the offensive zone stats
-        df = df[df['zoneCode']=='O']
+        df = df[(df['zoneCode']=='O')|(df['zoneCode']=='N')]
 
         #Mirror the coordinates of the shots for one side of the field to get all coordinates in one half of the field
         df.loc[df['xCoord']<0,'yCoord']=-df.loc[df['xCoord']<0,'yCoord']
