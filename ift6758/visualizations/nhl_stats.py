@@ -5,6 +5,9 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import os
+from PIL import Image
+from scipy.ndimage import gaussian_filter
 season_range = [2016,2017,2018,2019,2020,2021,2022,2023]
 shot_types = ['wrist', 'slap', 'backhand', 'snap', 'tip-in', 'deflected','wrap-around','poke', 'bat', 'between-legs', 'cradle']
 team_list = ['Lightning', 'Penguins', 'Kraken', 'Golden Knights', 'Canadiens','Maple Leafs', 'Rangers', 'Capitals', 'Avalanche', 'Blackhawks',
@@ -136,7 +139,7 @@ class NHLStats:
         else:
             self.plot_shot_distance_probability(start_season,end_season,bin_width,norm=norm)
         
-    def plot_shot_team_rate(self,season:int,team:str)-> tuple[pd.DataFrame,go.Figure]:
+    def plot_shot_team_rate(self,season:int,team:str,xbin:int,ybin:int,sigma:float)-> tuple[pd.DataFrame,go.Figure]:
         """Plots the excess shot rate per hour in the offensive zone for a team based on location over a regular season of NHL 
         ARGS:
         season (int): The season to consider for the statistics
@@ -178,15 +181,38 @@ class NHLStats:
             df_shot_loc[name]=df_shot_loc[name].sub(df_shot_loc['league_shotRate'])
         
         #Plot the density contours for the chosen team
-        fig = go.Figure(go.Histogram2dContour(x = df_shot_loc['xCoord'],
-                                        y = df_shot_loc['yCoord'],
-                                        z = df_shot_loc[team],
-                                        colorscale = 'RdBu',
-                                        histfunc='sum',
-                                        xbins=dict(size=10),
-                                        ybins=dict(size=10),
-                                        contours=dict(start=-1,end=1,size=0.1)
-                                        ))
+        local_data_path = os.getenv('RINK_IMG_PATH')
+        rink_image_path = os.path.join(local_data_path, f'nhl_rink.png')
+        rink_image = Image.open(rink_image_path)
+        crop_rink_image = rink_image.crop((550,0,1100,467)).rotate(90,expand=1)
+        fig = go.Figure()
+        fig.add_trace(
+            go.Histogram2dContour(y = df_shot_loc['xCoord'],
+                                  x = -df_shot_loc['yCoord'],
+                                  z = gaussian_filter(df_shot_loc[team],sigma=sigma),
+                                  colorscale = 'RdBu',
+                                  histfunc='sum',
+                                  xbins=dict(size=xbin),
+                                  ybins=dict(size=ybin),
+                                  contours=dict(start=-1,end=1,size=0.1)
+                                                )
+        )
+        fig.update_layout(autosize =False,
+                        width = 700.5,
+                        height = 825)
+        fig.add_layout_image(
+                dict(
+                    source=crop_rink_image,
+                    xref="paper",
+                    yref="paper",
+                    x=0,
+                    y=1,
+                    sizex=1,
+                    sizey=1,
+                    sizing="stretch",
+                    opacity=0.5,
+                    layer="above")
+        )
         fig.show()
         return df_shot_loc,fig
         
