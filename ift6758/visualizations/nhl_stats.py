@@ -139,15 +139,14 @@ class NHLStats:
         else:
             self.plot_shot_distance_probability(start_season,end_season,bin_width,norm=norm)
         
-    def plot_shot_team_rate(self,season:int,team:str,xbin:int,ybin:int,sigma:float)-> tuple[pd.DataFrame,go.Figure]:
-        """Plots the excess shot rate per hour in the offensive zone for a team based on location over a regular season of NHL 
+    def get_excess_shot_rate_df(self,season:int)-> pd.DataFrame:
+        """Create the dataframe with the excess shot rate per hour in the offensive zone for a team based on location over a regular season of NHL 
         ARGS:
         season (int): The season to consider for the statistics
-        team (str): The team to plot for
+        
         
         RETURNS:
-        pd.Dataframe: Data frame with excess shot rate for all the teams and league average shot rate by lcoation
-        go.Figure: The plotly figure object with the plot details"""
+        pd.Dataframe: Data frame with excess shot rate for all the teams and league average shot rate by lcoation"""
         
 
         df = self.data_parser.get_shot_and_goal_pbp_df_for_seasons(season)
@@ -180,26 +179,50 @@ class NHLStats:
         for name in team_list:
             df_shot_loc[name]=df_shot_loc[name].sub(df_shot_loc['league_shotRate'])
         
-        #Plot the density contours for the chosen team
+        return df_shot_loc
+    
+    def plot_excess_shot_rate(self,season:int,xbin:int,ybin:int,sigma:float):
+        """Plots the desnsity heatmap with the excess shot rate per hour in the offensive zone for all teams based on location over a regular season of NHL 
+        ARGS:
+        season (int): The season to consider for the statistics
+        xbin(int): bin width for length  
+        ybin(int): bin width for width
+        sigma(float): standard deviation for gaussian filter
+        """
+        
+        df = self.get_excess_shot_rate_df(season)
         local_data_path = os.getenv('RINK_IMG_PATH')
         rink_image_path = os.path.join(local_data_path, f'nhl_rink.png')
         rink_image = Image.open(rink_image_path)
         crop_rink_image = rink_image.crop((550,0,1100,467)).rotate(90,expand=1)
+        button_list = []
         fig = go.Figure()
-        fig.add_trace(
-            go.Histogram2dContour(y = df_shot_loc['xCoord'],
-                                  x = -df_shot_loc['yCoord'],
-                                  z = gaussian_filter(df_shot_loc[team],sigma=sigma),
+        for team in team_list:
+            fig.add_trace(
+                go.Histogram2dContour(y = df['xCoord'],
+                                  x = -df['yCoord'],
+                                  z = gaussian_filter(df[team],sigma=sigma),
                                   colorscale = 'RdBu',
                                   histfunc='sum',
                                   xbins=dict(size=xbin),
                                   ybins=dict(size=ybin),
-                                  contours=dict(start=-1,end=1,size=0.1)
-                                                )
-        )
-        fig.update_layout(autosize =False,
-                        width = 700.5,
-                        height = 825)
+                                  contours=dict(start=-1,end=1,size=0.1),
+                                  name = team
+                                                ))
+            button_list.append(dict(label = team,
+                                    method = 'update',
+                                    args = [{'visible': list(pd.Series(team_list)==team)},
+                                            {'title': team}]))
+        
+        fig.update_layout(
+            updatemenus=[go.layout.Updatemenu(
+                active=0,
+                buttons=button_list
+                )],
+                autosize =False,
+                width = 700.5,
+                height = 825)
+        
         fig.add_layout_image(
                 dict(
                     source=crop_rink_image,
@@ -209,11 +232,9 @@ class NHLStats:
                     y=1,
                     sizex=1,
                     sizey=1,
-                    sizing="stretch",
+                    sizing ='stretch',
                     opacity=0.5,
-                    layer="above")
-        )
+                    layer="above"))
         fig.show()
-        return df_shot_loc,fig
-        
+            
     
