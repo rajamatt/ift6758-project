@@ -27,7 +27,7 @@ class NHLHelper:
                     for game_num in range(1, MAX_GAMES_PER_PLAYOFF_ROUND + 1):
                         game_ids.append(self.construct_playoff_season_game_id(
                             season,
-                            round=round_num,
+                            round=round_num+1,
                             matchup=match_num,
                             game=game_num
                         ))
