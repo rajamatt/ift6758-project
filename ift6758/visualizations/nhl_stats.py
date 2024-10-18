@@ -195,6 +195,7 @@ class NHLStats:
         rink_image_path = os.path.join(local_data_path, f'nhl_rink.png')
         rink_image = Image.open(rink_image_path)
         crop_rink_image = rink_image.crop((550,0,1100,467)).rotate(90,expand=1)
+        crop_rink_image = crop_rink_image.resize((680,800))
         button_list = []
         fig = go.Figure()
         for team in team_list:
@@ -203,12 +204,12 @@ class NHLStats:
                                   x = -df['yCoord'],
                                   z = gaussian_filter(df[team],sigma=sigma),
                                   colorscale = 'RdBu',
+                                  reversescale = True,
                                   histfunc='sum',
                                   xbins=dict(size=xbin),
                                   ybins=dict(size=ybin),
                                   contours=dict(start=-1,end=1,size=0.1),
-                                  name = team
-                                                ))
+                                  name = team))
             button_list.append(dict(label = team,
                                     method = 'update',
                                     args = [{'visible': list(pd.Series(team_list)==team)},
@@ -220,8 +221,12 @@ class NHLStats:
                 buttons=button_list
                 )],
                 autosize =False,
-                width = 700.5,
-                height = 825)
+                width = 680,
+                height = 800)
+        fig.update_xaxes(title='Distance from Center of Rink (ft)',
+                         range = [-42.5,42.5])
+        fig.update_yaxes(title='Distance from goaline (ft)',
+                         range = [0,100])
         
         fig.add_layout_image(
                 dict(
@@ -233,7 +238,7 @@ class NHLStats:
                     sizex=1,
                     sizey=1,
                     sizing ='stretch',
-                    opacity=0.5,
+                    opacity=0.4,
                     layer="above"))
         fig.show()
             
