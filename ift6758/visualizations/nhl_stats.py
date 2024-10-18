@@ -204,6 +204,7 @@ class NHLStats:
                                   x = -df['yCoord'],
                                   z = gaussian_filter(df[team],sigma=sigma),
                                   colorscale = 'RdBu',
+                                  colorbar={"title": f'Excess Shots Per Hour<br> per {xbin*ybin} sqft'},
                                   reversescale = True,
                                   histfunc='sum',
                                   xbins=dict(size=xbin),
@@ -213,19 +214,21 @@ class NHLStats:
             button_list.append(dict(label = team,
                                     method = 'update',
                                     args = [{'visible': list(pd.Series(team_list)==team)},
-                                            {'title': team}]))
+                                            {'title': team + f": {season}-{season+1} ,<br>Regular Season Shot Rates Relative to League Average."}]))
         
         fig.update_layout(
+            title_text='Please Select A Team',
             updatemenus=[go.layout.Updatemenu(
                 active=0,
+                y  =1.5,
                 buttons=button_list
                 )],
                 autosize =False,
                 width = 680,
                 height = 800)
-        fig.update_xaxes(title='Distance from Center of Rink (ft)',
+        fig.update_xaxes(title='X (ft)',
                          range = [-42.5,42.5])
-        fig.update_yaxes(title='Distance from goaline (ft)',
+        fig.update_yaxes(title='Y (ft)',
                          range = [0,100])
         
         fig.add_layout_image(
@@ -238,8 +241,8 @@ class NHLStats:
                     sizex=1,
                     sizey=1,
                     sizing ='stretch',
-                    opacity=0.4,
+                    opacity=0.3,
                     layer="above"))
         fig.show()
-            
+        return fig
     
