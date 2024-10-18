@@ -32,7 +32,9 @@ FINAL_COLUMN_ORDER = [
     'shotDistance',
     'shootingTeamSide',
     'shootingPlayer',
-    'goalieInNet'
+    'goalieInNet',
+    'zoneCode'
+    
     ]
 
 class NHLDataParser:
