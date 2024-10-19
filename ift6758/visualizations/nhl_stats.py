@@ -90,7 +90,10 @@ class NHLStats:
                 bin_probabilty.append(np.nan)
         plt.plot(bins.mid,bin_probabilty)
         plt.xlabel('Shot Distance (feet)')
-        plt.ylabel('Probability')
+        if norm:
+            plt.ylabel('Joint Probability')
+        else:
+            plt.ylabel('Conditional Probability')
         if end_season==0 or start_season==end_season:
             plt.suptitle(f"Goal Probability vs Shot Distance({start_season})",fontsize='medium')
         else:
@@ -204,7 +207,7 @@ class NHLStats:
                                   x = -df['yCoord'],
                                   z = gaussian_filter(df[team],sigma=sigma),
                                   colorscale = 'RdBu',
-                                  colorbar={"title": f'Excess Shots Per Hour<br> per {xbin*ybin} sqft'},
+                                  colorbar={"title": f"Excess Shots Per Hour<br> per {xbin*ybin} sqft"},
                                   reversescale = True,
                                   histfunc='sum',
                                   xbins=dict(size=xbin),
@@ -217,10 +220,10 @@ class NHLStats:
                                             {'title': team + f": {season}-{season+1} ,<br>Regular Season Shot Rates Relative to League Average."}]))
         
         fig.update_layout(
-            title_text='Please Select A Team',
+            title_text=str(season)+ ": Please Select A Team",
             updatemenus=[go.layout.Updatemenu(
                 active=0,
-                y  =1.5,
+                y  =1.2,
                 buttons=button_list
                 )],
                 autosize =False,
