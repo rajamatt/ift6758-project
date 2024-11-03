@@ -317,14 +317,14 @@ class NHLDataParser:
         
         season_dfs = []
 
-        if(with_regular_season):
+        if with_regular_season:
             for game_id in self.helper.get_game_ids_for_season(season, True):
                 try:
                     season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
                 except FileNotFoundError:
                     continue
 
-        if(with_playoff_season):
+        if with_playoff_season:
             for game_id in self.helper.get_game_ids_for_season(season, False):
                 try:
                     season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
