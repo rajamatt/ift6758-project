@@ -301,7 +301,8 @@ class NHLDataParser:
             shot_and_goal_plays.at[index, 'shotDistance'] = self.__calculate_shot_distance(x_coord, y_coord, net_coords)
             shot_and_goal_plays.at[index, 'shotAngle'] = self.__calculate_shot_angle(x_coord, y_coord, net_coords)
 
-        # Drop all rows that contain NaN values, except for the goalieInNet column (indicating an empty net)
+        # Over all seasons (around 400 000 shot/goal events), there's only about 100 events that contain missing or NaN info
+        # Drop all rows that contain missing values, except for the 'goalieInNet' column (indicating an empty net)
         shot_and_goal_plays = shot_and_goal_plays.dropna(subset=[col for col in shot_and_goal_plays.columns if col != 'goalieInNet'])
 
         shot_and_goal_plays['gameId'] = game_id
