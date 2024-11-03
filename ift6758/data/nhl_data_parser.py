@@ -6,7 +6,7 @@ from ift6758.data.shared_constants import (
     MAX_GAMES_PER_PLAYOFF_ROUND
 )
 import json
-from math import sqrt
+import math
 import numpy as np
 import os
 import pandas as pd
@@ -26,15 +26,15 @@ FINAL_COLUMN_ORDER = [
     'timeInPeriod',
     'isGoal',
     'shotType',
+    'emptyNet',
     'xCoord',
     'yCoord',
+    'zoneCode',
     'shootingTeam',
     'shotDistance',
     'shootingTeamSide',
     'shootingPlayer',
-    'goalieInNet',
-    'zoneCode'
-    
+    'goalieInNet'
     ]
 
 class NHLDataParser:
@@ -56,7 +56,16 @@ class NHLDataParser:
         return pd.read_csv(full_local_data_path, index_col=False)
 
 
-    def season_already_parsed(self, season: int) -> bool:
+    def __get_season_file_name(self, season: int, with_regular_season: bool = True, with_playoff_season: bool = True) -> str:
+        if with_regular_season and not with_playoff_season:
+            return f'season_{season}_reg.csv'
+        elif with_playoff_season and not with_regular_season:
+            return f'season_{season}_playoffs.csv'
+        
+        return f'season_{season}.csv'
+
+
+    def season_already_parsed(self, season: int, with_regular_season: bool = True, with_playoff_season: bool = True) -> bool:
         """Checks if the season was already parsed or not.
 
         Args:
@@ -65,7 +74,8 @@ class NHLDataParser:
         Returns:
             bool: True if season exists in local data path, false if not.
         """
-        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, f'season_{season}.csv')
+        season_file = self.__get_season_file_name(season, with_regular_season, with_playoff_season)
+        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, season_file)
         return os.path.exists(full_local_data_path)
 
 
@@ -168,7 +178,14 @@ class NHLDataParser:
         """
         x_net, y_net = net_coords
 
-        return sqrt((xCoord - x_net) ** 2 + (yCoord - y_net) ** 2)
+        return math.sqrt((xCoord - x_net) ** 2 + (yCoord - y_net) ** 2)
+
+
+    def __calculate_shot_angle(self, x_coord, y_coord, net_coords):
+        delta_x = net_coords[0] - x_coord
+        delta_y = net_coords[1] - y_coord
+        
+        return math.degrees(math.atan2(abs(delta_y), abs(delta_x)))
 
 
     def get_shot_and_goal_pbp_df(self, game_id: str) -> pd.DataFrame:
@@ -187,8 +204,11 @@ class NHLDataParser:
         - Period info (time, number, type)
         - Shot or goal (0: shot, 1: goal)
         - Shot type
+        - Empty net (0: goalie present, 1: empty)
         - On-ice coords
+        - Zone code
         - Distance from net (ft)
+        - Shot angle (°)
         - Shooter team
         - Shooter name
         - Goalie name (None if empty net)
@@ -244,6 +264,7 @@ class NHLDataParser:
         shot_and_goal_plays['goalieInNetId'] = shot_and_goal_plays['goalieInNetId'].map(player_name_map)
 
         shot_and_goal_plays.rename(columns={'shootingPlayerId': 'shootingPlayer', 'goalieInNetId': 'goalieInNet'}, inplace=True)
+        shot_and_goal_plays['emptyNet'] = np.where(shot_and_goal_plays['goalieInNet'].isna(), 1, 0)
 
         shot_and_goal_plays['shootingTeamSide'] = None
         first_shooting_team, first_shooting_team_net_side_p1 = self.__get_shooting_team_side_during_p1(shot_and_goal_plays)
@@ -255,24 +276,34 @@ class NHLDataParser:
         )
 
         shot_and_goal_plays['shotDistance'] = None
+        shot_and_goal_plays['shotAngle'] = None
 
         for index, row in shot_and_goal_plays.iterrows():
             shooting_on_net_side = 1 - row['shootingTeamSide'] # the side of the rink the where the net is
-
             net_coords = None
+
             if shooting_on_net_side == 0:
                 net_coords = (-89, 0)
             else:
                 net_coords = (89, 0)
             
-            shot_and_goal_plays.at[index, 'shotDistance'] = self.__calculate_shot_distance(row['xCoord'], row['yCoord'], net_coords)
+            x_coord = row['xCoord']
+            y_coord = row['yCoord']
+
+            shot_and_goal_plays.at[index, 'shotDistance'] = self.__calculate_shot_distance(x_coord, y_coord, net_coords)
+            shot_and_goal_plays.at[index, 'shotAngle'] = self.__calculate_shot_angle(x_coord, y_coord, net_coords)
 
         shot_and_goal_plays['gameId'] = game_id
 
         return shot_and_goal_plays.drop(UNECESSARY_PBP_COLUMNS + UNECESSARY_EXTRA_COLUMNS, axis=1)[FINAL_COLUMN_ORDER]
 
 
-    def get_shot_and_goal_pbp_df_for_season(self, season: int) -> pd.DataFrame:
+    def get_shot_and_goal_pbp_df_for_season(
+            self, 
+            season: int, 
+            with_regular_season: bool = True, 
+            with_playoff_season: bool = True
+        ) -> pd.DataFrame:
         """Transforms the raw JSON data for play-by-play events of a particular season into a tidied DataFrame.
 
         Args:
@@ -281,34 +312,41 @@ class NHLDataParser:
         Returns:
             pd.DataFrame: DataFrame that contains tidied play-by-play data for the season specified.
         """
-        if self.season_already_parsed(season):
+        if self.season_already_parsed(season, with_regular_season, with_playoff_season):
             return self.raw_season_data_to_df(season)
         
         season_dfs = []
 
-        # Regular season
-        for game_id in self.helper.get_game_ids_for_season(season, True):
-            try:
-                season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
-            except FileNotFoundError:
-                continue
+        if(with_regular_season):
+            for game_id in self.helper.get_game_ids_for_season(season, True):
+                try:
+                    season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+                except FileNotFoundError:
+                    continue
 
-        # Playoff season
-        for game_id in self.helper.get_game_ids_for_season(season, False):
-            try:
-                season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
-            except FileNotFoundError:
-                continue
+        if(with_playoff_season):
+            for game_id in self.helper.get_game_ids_for_season(season, False):
+                try:
+                    season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
+                except FileNotFoundError:
+                    continue
 
         season_df = pd.concat(season_dfs, ignore_index=True)
+        season_file = self.__get_season_file_name(season, with_regular_season, with_playoff_season)
         
-        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, f'season_{season}.csv')
+        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, season_file)
         season_df.to_csv(full_local_data_path, index=False)
 
         return season_df
 
 
-    def get_shot_and_goal_pbp_df_for_seasons(self, start_season: int, end_season: int = 0) -> pd.DataFrame:
+    def get_shot_and_goal_pbp_df_for_seasons(
+            self,
+            start_season: int,
+            end_season: int = 0,
+            with_regular_season: bool = True,
+            with_playoff_season: bool = True
+        ) -> pd.DataFrame:
         """Transforms the raw JSON data for play-by-play events across a range of seasons into a tidied DataFrame.
 
         Args:
@@ -321,9 +359,17 @@ class NHLDataParser:
         all_seasons_dfs = []
 
         if end_season == 0:
-            return self.get_shot_and_goal_pbp_df_for_season(start_season)
+            return self.get_shot_and_goal_pbp_df_for_season(
+                start_season,
+                with_regular_season=with_regular_season,
+                with_playoff_season=with_playoff_season
+            )
         else:
             for season in list(range(start_season, end_season + 1)):
-                all_seasons_dfs.append(self.get_shot_and_goal_pbp_df_for_season(season))
+                all_seasons_dfs.append(self.get_shot_and_goal_pbp_df_for_season(
+                    season,
+                    with_regular_season=with_regular_season,
+                    with_playoff_season=with_playoff_season
+                ))
 
         return pd.concat(all_seasons_dfs, ignore_index=True)
