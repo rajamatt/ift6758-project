@@ -32,6 +32,7 @@ FINAL_COLUMN_ORDER = [
     'zoneCode',
     'shootingTeam',
     'shotDistance',
+    'shotAngle',
     'shootingTeamSide',
     'shootingPlayer',
     'goalieInNet'
