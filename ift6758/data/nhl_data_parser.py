@@ -1,10 +1,5 @@
 from ift6758.data.nhl_data_fetcher import NHLDataFetcher
 from ift6758.data.nhl_helper import NHLHelper
-from ift6758.data.shared_constants import (
-    MAX_GAMES_PER_REGULAR_SEASON,
-    MATCHUPS_PER_PLAYOFF_ROUND,
-    MAX_GAMES_PER_PLAYOFF_ROUND
-)
 import json
 import math
 import numpy as np
@@ -58,6 +53,16 @@ class NHLDataParser:
 
 
     def __get_season_file_name(self, season: int, with_regular_season: bool = True, with_playoff_season: bool = True) -> str:
+        """Gets the season file name for a season. Only regular seasons end with "reg". Only playoff seasons end with "playoffs".
+
+        Args:
+            season (int): Season year.
+            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
+            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
+
+        Returns:
+            str: Season file name.
+        """
         if with_regular_season and not with_playoff_season:
             return f'season_{season}_reg.csv'
         elif with_playoff_season and not with_regular_season:
@@ -71,6 +76,8 @@ class NHLDataParser:
 
         Args:
             season (int): Season for which we want to check if was already parsed.
+            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
+            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
 
         Returns:
             bool: True if season exists in local data path, false if not.
@@ -308,7 +315,9 @@ class NHLDataParser:
         """Transforms the raw JSON data for play-by-play events of a particular season into a tidied DataFrame.
 
         Args:
-            season (int): Season to get the play-by-play data for.
+            season (int): Season year.
+            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
+            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
 
         Returns:
             pd.DataFrame: DataFrame that contains tidied play-by-play data for the season specified.
@@ -352,7 +361,9 @@ class NHLDataParser:
 
         Args:
             start_season (int): First season to start getting the play-by-play data for.
-            end_season (int, optional): Last season to start getting the play-by-play data for. Defaults to 0.
+            end_season (int, optional): Last season to start getting the play-by-play data for. Defaults to 0.`
+            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
+            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
 
         Returns:
             pd.DataFrame: DataFrame that contains tidied play-by-play data for range of seasons specified.
