@@ -30,7 +30,12 @@ FINAL_COLUMN_ORDER = [
     'shotAngle',
     'shootingTeamSide',
     'shootingPlayer',
-    'goalieInNet'
+    'goalieInNet',
+    'previousEvent',
+    'previousEventX',
+    'previousEventY',
+    'timeSincePreviousEvent',
+    'distanceFromPreviousEvent'
     ]
 
 class NHLDataParser:
@@ -208,7 +213,7 @@ class NHLDataParser:
 
         DataFrame contents:
         - Game ID
-        - Game time
+        - Game time (s)
         - Period info (time, number, type)
         - Shot or goal (0: shot, 1: goal)
         - Shot type
@@ -220,6 +225,7 @@ class NHLDataParser:
         - Shooter team
         - Shooter name
         - Goalie name (None if empty net)
+        - Previous event info (type, coords, time since, distance from)
         """
         if not self.data_fetcher.game_already_fetched(game_id):
             self.data_fetcher.fetch_raw_game_data(game_id)
@@ -229,6 +235,13 @@ class NHLDataParser:
 
         all_plays = pd.DataFrame(game_data.get('plays', []))
         rosters = pd.DataFrame(game_data.get('rosterSpots', []))
+
+        all_plays['timeRemaining'] = all_plays['timeRemaining'].apply(lambda t: int(t.split(':')[0]) * 60 + int(t.split(':')[1]))
+        
+        all_plays['previousEvent'] = all_plays['typeDescKey'].shift(1)
+        all_plays['previousEventX'] = all_plays['xCoord'].shift(1)
+        all_plays['previousEventY'] = all_plays['yCoord'].shift(1)
+        all_plays['timeSincePreviousEvent'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
 
         shot_and_goal_plays = all_plays[all_plays['typeDescKey'].isin(RELEVANT_EVENT_TYPES)].copy()
 
