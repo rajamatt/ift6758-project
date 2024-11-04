@@ -178,27 +178,34 @@ class NHLDataParser:
         return df
 
 
-    def __calculate_shot_distance(self, xCoord: int, yCoord: int, net_coords: tuple) -> float:
+    def __calculate_distance(self, x1: int, y1: int, x2: int, y2: int) -> float:
         """Calculates the euclidian distance between (xCoord, yCoord) and net_coords
 
         Args:
-            xCoord (int): The x coordinate of the first point
-            yCoord (int): The y coordinate of the first point
-            net_coords (tuple): The (x,y) coordinates of the net
+            x1 (int): The x coordinate of the first point
+            y1 (int): The y coordinate of the first point
+            x2 (int): The x coordinate of the second point
+            y2 (int): The y coordinate of the second point
 
         Returns:
-            float: The floating value distance between the first point and the net coordinates
+            float: The floating value distance between the first point and the second point coordinates
         """
-        x_net, y_net = net_coords
-
-        return math.sqrt((xCoord - x_net) ** 2 + (yCoord - y_net) ** 2)
+        return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
 
-    def __calculate_shot_angle(self, x_coord, y_coord, net_coords):
-        delta_x = net_coords[0] - x_coord
-        delta_y = net_coords[1] - y_coord
-        
-        return math.degrees(math.atan2(abs(delta_y), abs(delta_x)))
+    def __calculate_angle(self, x1: int, y1: int, x2: int, y2: int) -> float:
+        """Calculates the angle between two points, considering a right triangle.
+
+        Args:
+            x1 (int): The x coordinate of the first point
+            y1 (int): The y coordinate of the first point
+            x2 (int): The x coordinate of the second point
+            y2 (int): The y coordinate of the second point
+
+        Returns:
+            float: The floating value angle between the two points
+        """
+        return math.degrees(math.atan2(abs(y2 - y1), abs(x2 - x1)))
 
 
     def get_shot_and_goal_pbp_df(self, game_id: str) -> pd.DataFrame:
@@ -311,8 +318,8 @@ class NHLDataParser:
             x_coord = row['xCoord']
             y_coord = row['yCoord']
 
-            shot_and_goal_plays.at[index, 'shotDistance'] = self.__calculate_shot_distance(x_coord, y_coord, net_coords)
-            shot_and_goal_plays.at[index, 'shotAngle'] = self.__calculate_shot_angle(x_coord, y_coord, net_coords)
+            shot_and_goal_plays.at[index, 'shotDistance'] = self.__calculate_distance(x_coord, y_coord, net_coords[0], net_coords[1])
+            shot_and_goal_plays.at[index, 'shotAngle'] = self.__calculate_angle(x_coord, y_coord, net_coords[0], net_coords[1])
 
         # Over all seasons (around 400 000 shot/goal events), there's only about 100 events that contain missing or NaN info
         # Drop all rows that contain missing values, except for the 'goalieInNet' column (indicating an empty net)
