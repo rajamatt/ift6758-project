@@ -11,8 +11,11 @@ RELEVANT_EVENT_TYPES = ['shot-on-goal', 'goal']
 UNECESSARY_PBP_COLUMNS = ['eventId', 'typeCode', 'situationCode', 'sortOrder']
 UNECESSARY_EXTRA_COLUMNS = ['periodDescriptor', 'details']
 
-SHOT_AND_GOAL_COMMON_COLUMNS = ['shotType', 'xCoord', 'yCoord', 'goalieInNetId']
+EVENT_COMMON_COLUMNS = ['xCoord', 'yCoord']
+SHOT_AND_GOAL_COMMON_COLUMNS = ['shotType', 'goalieInNetId']
 PERIOD_COMMON_COLUMNS = ['number', 'periodType']
+
+COLUMNS_TO_DROP_IF_NAN = ['shotType', 'xCoord', 'yCoord', 'zoneCode']
 
 FINAL_COLUMN_ORDER = [
     'gameId',
@@ -107,6 +110,13 @@ class NHLDataParser:
         return {game_data['homeTeam']['id']: home_team, game_data['awayTeam']['id']: away_team}
 
 
+    def __try_extract_info(self, x: object, info: str):
+        try:
+            return x.get(info)
+        except:
+            return None 
+
+
     def __extract_info_to_columns(self, columns: list, source: str, df: pd.DataFrame) -> pd.DataFrame:
         """Extract useful info from the raw game data.
 
@@ -119,7 +129,7 @@ class NHLDataParser:
             pd.DataFrame: DataFrame that contains the useful info as columns.
         """
         for col in columns:
-            df[col] = df[source].apply(lambda x: x.get(col))
+            df[col] = df[source].apply(lambda x: self.__try_extract_info(x, col))
         
         return df
     
@@ -248,6 +258,12 @@ class NHLDataParser:
         all_plays['previousEvent'] = all_plays['typeDescKey'].shift(1)
         all_plays['timeSincePreviousEvent'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
 
+        all_plays = self.__extract_info_to_columns(
+            columns=EVENT_COMMON_COLUMNS,
+            source='details',
+            df=all_plays
+        )
+
         all_plays['previousEventX'] = all_plays['xCoord'].shift(1)
         all_plays['previousEventY'] = all_plays['yCoord'].shift(1)
 
@@ -329,7 +345,7 @@ class NHLDataParser:
 
         # Over all seasons (around 400 000 shot/goal events), there's only about 100 events that contain missing or NaN info
         # Drop all rows that contain missing values, except for the 'goalieInNet' column (indicating an empty net)
-        shot_and_goal_plays = shot_and_goal_plays.dropna(subset=[col for col in shot_and_goal_plays.columns if col != 'goalieInNet'])
+        shot_and_goal_plays = shot_and_goal_plays.dropna(subset=COLUMNS_TO_DROP_IF_NAN)
 
         shot_and_goal_plays['gameId'] = game_id
 
