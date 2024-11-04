@@ -32,9 +32,9 @@ FINAL_COLUMN_ORDER = [
     'shootingPlayer',
     'goalieInNet',
     'previousEvent',
+    'timeSincePreviousEvent',
     'previousEventX',
     'previousEventY',
-    'timeSincePreviousEvent',
     'distanceFromPreviousEvent'
     ]
 
@@ -246,9 +246,15 @@ class NHLDataParser:
         all_plays['timeRemaining'] = all_plays['timeRemaining'].apply(lambda t: int(t.split(':')[0]) * 60 + int(t.split(':')[1]))
         
         all_plays['previousEvent'] = all_plays['typeDescKey'].shift(1)
+        all_plays['timeSincePreviousEvent'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
+
         all_plays['previousEventX'] = all_plays['xCoord'].shift(1)
         all_plays['previousEventY'] = all_plays['yCoord'].shift(1)
-        all_plays['timeSincePreviousEvent'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
+
+        all_plays['distanceFromPreviousEvent'] = all_plays.apply(
+            lambda row: self.__calculate_distance(row['xCoord'], row['yCoord'], row['previousEventX'], row['previousEventY']),
+            axis=1
+        )
 
         shot_and_goal_plays = all_plays[all_plays['typeDescKey'].isin(RELEVANT_EVENT_TYPES)].copy()
 
