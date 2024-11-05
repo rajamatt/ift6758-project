@@ -35,10 +35,13 @@ FINAL_COLUMN_ORDER = [
     'shootingPlayer',
     'goalieInNet',
     'previousEvent',
-    'timeSincePreviousEvent',
+    'timeDiff',
     'previousEventX',
     'previousEventY',
-    'distanceFromPreviousEvent'
+    'rebound',
+    'distanceDiff',
+    'shotAngleDiff',
+    'speed'
     ]
 
 class NHLDataParser:
@@ -111,11 +114,20 @@ class NHLDataParser:
 
 
     def __try_extract_info(self, x: object, info: str):
+        """Helper function that tries to extract a specific string from an object.
+
+        Args:
+            x (object): Object to extract from.
+            info (str): String to extract value for.
+
+        Returns:
+            any: If string exists in the object and could be extracted then the value for that string, else None.
+        """
         try:
             return x.get(info)
         except:
             return None 
-
+        
 
     def __extract_info_to_columns(self, columns: list, source: str, df: pd.DataFrame) -> pd.DataFrame:
         """Extract useful info from the raw game data.
@@ -242,7 +254,9 @@ class NHLDataParser:
         - Shooter team
         - Shooter name
         - Goalie name (None if empty net)
-        - Previous event info (type, coords, time since, distance from)
+        - Previous event info (type, coords, time since, distance from, angle difference)
+        - Rebound (0: no rebound, 1: rebound)
+        - Speed (ft/s)
         """
         if not self.data_fetcher.game_already_fetched(game_id):
             self.data_fetcher.fetch_raw_game_data(game_id)
@@ -256,7 +270,7 @@ class NHLDataParser:
         all_plays['timeRemaining'] = all_plays['timeRemaining'].apply(lambda t: int(t.split(':')[0]) * 60 + int(t.split(':')[1]))
         
         all_plays['previousEvent'] = all_plays['typeDescKey'].shift(1)
-        all_plays['timeSincePreviousEvent'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
+        all_plays['timeDiff'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
 
         all_plays = self.__extract_info_to_columns(
             columns=EVENT_COMMON_COLUMNS,
@@ -267,12 +281,23 @@ class NHLDataParser:
         all_plays['previousEventX'] = all_plays['xCoord'].shift(1)
         all_plays['previousEventY'] = all_plays['yCoord'].shift(1)
 
-        all_plays['distanceFromPreviousEvent'] = all_plays.apply(
+        all_plays['distanceDiff'] = all_plays.apply(
             lambda row: self.__calculate_distance(row['xCoord'], row['yCoord'], row['previousEventX'], row['previousEventY']),
             axis=1
         )
 
         shot_and_goal_plays = all_plays[all_plays['typeDescKey'].isin(RELEVANT_EVENT_TYPES)].copy()
+        shot_and_goal_plays['rebound'] = shot_and_goal_plays['previousEvent'].apply(lambda x: 1 if x == 'shot-on-goal' else 0)
+
+        shot_and_goal_plays['speed'] = shot_and_goal_plays.apply(
+            lambda row: row['distanceDiff'] / row['timeDiff']
+                if pd.notna(row['timeDiff']) and row['timeDiff'] > 0
+                else -1,
+            axis=1
+        )
+
+        mean_speed = shot_and_goal_plays[shot_and_goal_plays['speed'] != -1]['speed'].mean()
+        shot_and_goal_plays['speed'] = shot_and_goal_plays['speed'].replace(-1, mean_speed)
 
         shot_and_goal_plays.rename(columns={'typeDescKey': 'isGoal'}, inplace=True)
         shot_and_goal_plays['isGoal'] = shot_and_goal_plays['isGoal'].map({'shot-on-goal': 0, 'goal': 1})
@@ -342,6 +367,14 @@ class NHLDataParser:
 
             shot_and_goal_plays.at[index, 'shotDistance'] = self.__calculate_distance(x_coord, y_coord, net_coords[0], net_coords[1])
             shot_and_goal_plays.at[index, 'shotAngle'] = self.__calculate_angle(x_coord, y_coord, net_coords[0], net_coords[1])
+
+        shot_and_goal_plays['previousShotAngle'] = shot_and_goal_plays['shotAngle'].shift(1)
+        shot_and_goal_plays['shotAngleDiff'] = shot_and_goal_plays.apply(
+            lambda shot: abs(shot['shotAngle'] - shot['previousShotAngle']) 
+                if shot['rebound'] == 1 and pd.notna(row['previousEventX']) and pd.notna(row['previousEventY'])
+                else 0,
+            axis=1
+        )
 
         # Over all seasons (around 400 000 shot/goal events), there's only about 100 events that contain missing or NaN info
         # Drop all rows that contain missing values, except for the 'goalieInNet' column (indicating an empty net)
