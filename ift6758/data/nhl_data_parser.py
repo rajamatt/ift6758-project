@@ -50,16 +50,16 @@ class NHLDataParser:
         self.helper = NHLHelper()
 
     
-    def raw_season_data_to_df(self, season: int) -> pd.DataFrame:
+    def raw_season_data_to_df(self, season_file: str) -> pd.DataFrame:
         """Turns CSV of raw season data into DataFrame.
 
         Args:
-            full_local_data_path (str): System path for the parsed local season data.
+            season_file (str): System path for the parsed local season data.
 
         Returns:
             pd.DataFrame: DataFrame containing the already parsed season.
         """
-        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, f'season_{season}.csv')
+        full_local_data_path = os.path.join(self.data_fetcher.local_data_path, season_file)
         return pd.read_csv(full_local_data_path, index_col=False)
 
 
@@ -402,7 +402,7 @@ class NHLDataParser:
             pd.DataFrame: DataFrame that contains tidied play-by-play data for the season specified.
         """
         if self.season_already_parsed(season, with_regular_season, with_playoff_season):
-            return self.raw_season_data_to_df(season)
+            return self.raw_season_data_to_df(self.__get_season_file_name(season, with_regular_season, with_playoff_season))
         
         season_dfs = []
 
