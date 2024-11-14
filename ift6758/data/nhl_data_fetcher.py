@@ -106,3 +106,23 @@ class NHLDataFetcher:
             for season in list(range(start_season, end_season + 1)):
                 self.fetch_raw_regular_season_data(season)
                 self.fetch_raw_playoff_season_data(season)
+
+    
+    def fetch_raw_penalty_data(self, game_id: str) -> object:
+        """Fetches the raw penalty data from the NHL game summary reports.
+
+        Args:
+            game_id (str): Game ID to get the raw penalty data for.
+
+        Returns:
+            object: Raw penalty data. None if request fails.
+        """
+        season = game_id[:4]
+        season_years = f'{season}{int(season) + 1}'
+
+        response = requests.get(f'https://www.nhl.com/scores/htmlreports/{season_years}/GS{game_id[4:]}.HTM')
+
+        if response.status_code == 200:
+            return response.content
+        else:
+            return None
