@@ -261,6 +261,11 @@ class NHLDataParser:
         if not self.data_fetcher.game_already_fetched(game_id):
             self.data_fetcher.fetch_raw_game_data(game_id)
 
+        file_path = self.data_fetcher.get_game_local_path(game_id)
+
+        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+            raise FileNotFoundError(f"Game data file for game_id {game_id} is missing or empty.")
+
         with open(self.data_fetcher.get_game_local_path(game_id), 'r') as file:
             game_data = json.load(file)
 
@@ -386,39 +391,42 @@ class NHLDataParser:
 
 
     def get_shot_and_goal_pbp_df_for_season(
-            self, 
-            season: int, 
-            with_regular_season: bool = True, 
-            with_playoff_season: bool = True
+        self, 
+        season: int, 
+        with_regular_season: bool = True, 
+        with_playoff_season: bool = True
         ) -> pd.DataFrame:
-        """Transforms the raw JSON data for play-by-play events of a particular season into a tidied DataFrame.
-
-        Args:
-            season (int): Season year.
-            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
-            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
-
-        Returns:
-            pd.DataFrame: DataFrame that contains tidied play-by-play data for the season specified.
-        """
+        """Transforms the raw JSON data for play-by-play events of a particular season into a tidied DataFrame."""
         if self.season_already_parsed(season, with_regular_season, with_playoff_season):
             return self.raw_season_data_to_df(self.__get_season_file_name(season, with_regular_season, with_playoff_season))
         
         season_dfs = []
 
+        # Process regular season games
         if with_regular_season:
             for game_id in self.helper.get_game_ids_for_season(season, True):
                 try:
                     season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
                 except FileNotFoundError:
+                    print(f"File not found for game_id: {game_id}, skipping.")
+                    continue
+                except ValueError as e:
+                    print(f"ValueError for game_id {game_id}: {e}")
                     continue
 
+        # Process playoff games
         if with_playoff_season:
             for game_id in self.helper.get_game_ids_for_season(season, False):
                 try:
                     season_dfs.append(self.get_shot_and_goal_pbp_df(game_id))
                 except FileNotFoundError:
                     continue
+                except ValueError as e:
+                    continue
+
+        # Concatenate all game DataFrames
+        if not season_dfs:
+            raise ValueError(f"No valid game data found for season {season}.")
 
         season_df = pd.concat(season_dfs, ignore_index=True)
         season_file = self.__get_season_file_name(season, with_regular_season, with_playoff_season)
@@ -430,23 +438,13 @@ class NHLDataParser:
 
 
     def get_shot_and_goal_pbp_df_for_seasons(
-            self,
-            start_season: int,
-            end_season: int = 0,
-            with_regular_season: bool = True,
-            with_playoff_season: bool = True
+        self,
+        start_season: int,
+        end_season: int = 0,
+        with_regular_season: bool = True,
+        with_playoff_season: bool = True
         ) -> pd.DataFrame:
-        """Transforms the raw JSON data for play-by-play events across a range of seasons into a tidied DataFrame.
-
-        Args:
-            start_season (int): First season to start getting the play-by-play data for.
-            end_season (int, optional): Last season to start getting the play-by-play data for. Defaults to 0.`
-            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
-            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
-
-        Returns:
-            pd.DataFrame: DataFrame that contains tidied play-by-play data for range of seasons specified.
-        """
+        """Transforms the raw JSON data for play-by-play events across a range of seasons into a tidied DataFrame."""
         all_seasons_dfs = []
 
         if end_season == 0:
@@ -456,11 +454,17 @@ class NHLDataParser:
                 with_playoff_season=with_playoff_season
             )
         else:
-            for season in list(range(start_season, end_season + 1)):
-                all_seasons_dfs.append(self.get_shot_and_goal_pbp_df_for_season(
+            for season in range(start_season, end_season + 1):
+                season_df = self.get_shot_and_goal_pbp_df_for_season(
                     season,
                     with_regular_season=with_regular_season,
                     with_playoff_season=with_playoff_season
-                ))
+                )
+                all_seasons_dfs.append(season_df)
+
+
+        # Ensure we have data to concatenate
+        if not all_seasons_dfs:
+            raise ValueError(f"No valid game data found for seasons {start_season} to {end_season}.")
 
         return pd.concat(all_seasons_dfs, ignore_index=True)
