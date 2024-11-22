@@ -261,10 +261,8 @@ class NHLDataParser:
         if not self.data_fetcher.game_already_fetched(game_id):
             self.data_fetcher.fetch_raw_game_data(game_id)
 
-        file_path = self.data_fetcher.get_game_local_path(game_id)
-
-        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
-            raise FileNotFoundError(f"Game data file for game_id {game_id} is missing or empty.")
+        if os.path.getsize(self.data_fetcher.get_game_local_path(game_id)) == 0:
+            raise FileNotFoundError(f"Game data file for game_id {game_id} is empty.")
 
         with open(self.data_fetcher.get_game_local_path(game_id), 'r') as file:
             game_data = json.load(file)
@@ -391,12 +389,21 @@ class NHLDataParser:
 
 
     def get_shot_and_goal_pbp_df_for_season(
-        self, 
-        season: int, 
-        with_regular_season: bool = True, 
-        with_playoff_season: bool = True
+            self, 
+            season: int, 
+            with_regular_season: bool = True, 
+            with_playoff_season: bool = True
         ) -> pd.DataFrame:
-        """Transforms the raw JSON data for play-by-play events of a particular season into a tidied DataFrame."""
+        """Transforms the raw JSON data for play-by-play events of a particular season into a tidied DataFrame.
+        
+        Args:
+            season (int): Season year.
+            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
+            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
+        
+        Returns:
+            pd.DataFrame: DataFrame that contains tidied play-by-play data for the season specified.
+        """
         if self.season_already_parsed(season, with_regular_season, with_playoff_season):
             return self.raw_season_data_to_df(self.__get_season_file_name(season, with_regular_season, with_playoff_season))
         
@@ -438,13 +445,23 @@ class NHLDataParser:
 
 
     def get_shot_and_goal_pbp_df_for_seasons(
-        self,
-        start_season: int,
-        end_season: int = 0,
-        with_regular_season: bool = True,
-        with_playoff_season: bool = True
+            self,
+            start_season: int,
+            end_season: int = 0,
+            with_regular_season: bool = True,
+            with_playoff_season: bool = True
         ) -> pd.DataFrame:
-        """Transforms the raw JSON data for play-by-play events across a range of seasons into a tidied DataFrame."""
+        """Transforms the raw JSON data for play-by-play events across a range of seasons into a tidied DataFrame.
+        
+        Args:
+            start_season (int): First season to start getting the play-by-play data for.
+            end_season (int, optional): Last season to start getting the play-by-play data for. Defaults to 0.
+            with_regular_season (bool, optional): If the season should contain regular season games. Defaults to True.
+            with_playoff_season (bool, optional): If the season should contain playoff season games. Defaults to True.
+        
+        Returns:
+            pd.DataFrame: DataFrame that contains tidied play-by-play data for range of seasons specified.
+        """
         all_seasons_dfs = []
 
         if end_season == 0:
