@@ -1,10 +1,14 @@
 from ift6758.data.nhl_data_fetcher import NHLDataFetcher
 from ift6758.data.nhl_helper import NHLHelper
+from ift6758.data.nhl_summary_scraper import NHLSummaryScraper
 import json
 import math
 import numpy as np
 import os
 import pandas as pd
+
+BASE_SKATERS_ON_ICE = 5
+REGULAR_SEASON_OT_SKATERS_ON_ICE = 3
 
 RELEVANT_EVENT_TYPES = ['shot-on-goal', 'goal']
 
@@ -41,13 +45,17 @@ FINAL_COLUMN_ORDER = [
     'rebound',
     'distanceDiff',
     'shotAngleDiff',
-    'speed'
+    'speed',
+    'timeSincePPStarted',
+    'friendlySkaters',
+    'opposingSkaters'
     ]
 
 class NHLDataParser:
     def __init__(self):
         self.data_fetcher = NHLDataFetcher()
         self.helper = NHLHelper()
+        self.summary_scraper = NHLSummaryScraper()
 
     
     def raw_season_data_to_df(self, season_file: str) -> pd.DataFrame:
@@ -230,6 +238,29 @@ class NHLDataParser:
         return math.degrees(math.atan2(abs(y2 - y1), abs(x2 - x1)))
 
 
+    def __convert_time_to_seconds(self, time: str) -> int:
+        """Converts an NHL formatted time (mm:ss) to seconds.
+
+        Args:
+            time (str): Time in format mm:ss.
+
+        Returns:
+            int: Number of seconds.
+        """
+        minutes, seconds = map(int, time.split(':'))
+        return minutes * 60 + seconds
+    
+
+    def __is_ongoing_penalty(self, shot: pd.Series, penalty: dict) -> bool:
+        if penalty['period'] == shot['periodNumber']:
+            penalty_end_time = penalty['time'] + penalty['pim'] * 60
+            
+            if shot['timeInPeriod'] >= penalty['time'] and shot['timeInPeriod'] < penalty_end_time:
+                return True
+            
+        return False
+
+
     def get_shot_and_goal_pbp_df(self, game_id: str) -> pd.DataFrame:
         """Converts the JSON play-by-play game data to a pandas DataFrame containing shots-on-net and goals.
         If the game isn't already fetched, the NHLDataFetcher will fetch it using the API, then convert the JSON.
@@ -267,7 +298,8 @@ class NHLDataParser:
         all_plays = pd.DataFrame(game_data.get('plays', []))
         rosters = pd.DataFrame(game_data.get('rosterSpots', []))
 
-        all_plays['timeRemaining'] = all_plays['timeRemaining'].apply(lambda t: int(t.split(':')[0]) * 60 + int(t.split(':')[1]))
+        all_plays['timeRemaining'] = all_plays['timeRemaining'].apply(self.__convert_time_to_seconds)
+        all_plays['timeInPeriod'] = all_plays['timeInPeriod'].apply(self.__convert_time_to_seconds)
         
         all_plays['previousEvent'] = all_plays['typeDescKey'].shift(1)
         all_plays['timeDiff'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
@@ -379,6 +411,47 @@ class NHLDataParser:
         # Over all seasons (around 400 000 shot/goal events), there's only about 100 events that contain missing or NaN info
         # Drop all rows that contain missing values, except for the 'goalieInNet' column (indicating an empty net)
         shot_and_goal_plays = shot_and_goal_plays.dropna(subset=COLUMNS_TO_DROP_IF_NAN)
+
+        penalties = self.summary_scraper.scrape_penalty_data(game_id).to_dict('records')
+        
+        active_penalties = []
+        waved_penalties = []
+
+        for i, shot in shot_and_goal_plays.iterrows():
+            shooting_team_upper = shot['shootingTeam'].upper()
+
+            if shot['isGoal'] == 1:
+                for p in active_penalties:
+                    if self.__is_ongoing_penalty(shot, p) and not shooting_team_upper in p['team']:
+                        if p['pim'] == 2: # if it's a minor penalty
+                            active_penalties.remove(p)
+                            waved_penalties.append(p)
+                            break
+                            
+            for p in penalties:
+                if self.__is_ongoing_penalty(shot, p):
+                    active_penalties.append(p)
+
+            for p in waved_penalties:
+                active_penalties.remove(p)
+
+            friendly_skater_count = BASE_SKATERS_ON_ICE
+            opposing_skater_count = BASE_SKATERS_ON_ICE
+            
+            for p in active_penalties:
+                if shooting_team_upper in p['team']:
+                    friendly_skater_count -= 1
+                else:
+                    opposing_skater_count -= 1
+            
+            if active_penalties:
+                time_since_pp_started = min(p['time'] for p in active_penalties) + shot['timeInPeriod']
+            else:
+                time_since_pp_started = 0
+            
+            shot_and_goal_plays.at[i, 'timeSincePPStarted'] = time_since_pp_started
+            shot_and_goal_plays.at[i, 'friendlySkaters'] = friendly_skater_count
+            shot_and_goal_plays.at[i, 'opposingSkaters'] = opposing_skater_count
 
         shot_and_goal_plays['gameId'] = game_id
 
