@@ -15,97 +15,130 @@ from flask import Flask, jsonify, request, abort
 import sklearn
 import pandas as pd
 import joblib
-
-
 import ift6758
-
+from wandb import Api
 
 LOG_FILE = os.environ.get("FLASK_LOG", "flask.log")
+MODEL_DIR = "models"
+DEFAULT_MODEL = "default_model.pkl"
+
+model = None
+
+def create_app():
+    app = Flask(__name__)
+    app.logger.setLevel(logging.INFO)
+
+    # Initialize app components
+    initialize_app(app)
+
+    # Register routes
+    register_routes(app)
+
+    return app
 
 
-app = Flask(__name__)
+def initialize_app(app):
+    logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s - %(message)s")
+    os.makedirs(MODEL_DIR, exist_ok=True)
+
+    global model
+    model_path = os.path.join(MODEL_DIR, DEFAULT_MODEL)
+
+    if os.path.exists(model_path):
+        global model
+        model = joblib.load(model_path)
+        app.logger.info(f"Loaded default model: {DEFAULT_MODEL}")
+    else:
+        app.logger.warning("Default model not found. Predict endpoint will not work until a model is loaded.")
+
+def register_routes(app):
+    @app.route("/logs", methods=["GET"])
+    def logs():
+        """Reads data from the log file and returns them as the response"""
+        try:
+            with open(LOG_FILE, "r") as log_file:
+                log_data = log_file.readlines()
+            return jsonify({"logs": log_data})
+        except FileNotFoundError:
+            return jsonify({"error": "Log file not found"}), 404
 
 
-@app.before_first_request
-def before_first_request():
-    """
-    Hook to handle any initialization before the first request (e.g. load model,
-    setup logging handler, etc.)
-    """
-    # TODO: setup basic logging configuration
-    logging.basicConfig(filename=LOG_FILE, level=logging.INFO)
+    @app.route("/download_registry_model", methods=["POST"])
+    def download_registry_model():
+        """
+        Handles POST requests made to http://IP_ADDRESS:PORT/download_registry_model
 
-    # TODO: any other initialization before the first request (e.g. load default model)
-    pass
+        The comet API key should be retrieved from the ${COMET_API_KEY} environment variable.
+
+        Recommend (but not required) json with the schema:
+
+            {
+                workspace: (required),
+                model: (required),
+                version: (required),
+                ... (other fields if needed) ...
+            }
+        
+        """
+        json = request.get_json()
+        app.logger.info(json)
+
+        request_data = request.get_json()
+        workspace = request_data.get("workspace")
+        model_name = request_data.get("model")
+        version = request_data.get("version")
+
+        api = Api()
+        
+        try:
+            model_path = os.path.join(MODEL_DIR, f"{model_name}_{version}.pkl")
+            if os.path.exists(model_path):
+                global model
+                model = joblib.load(model_path)
+                app.logger.info(f"Loaded model {model_name} version {version} from local storage")
+                return jsonify({"message": f"Model {model_name} version {version} loaded from local storage"})
+
+            # Download model from WandB
+            artifact = api.artifact(f"{workspace}/{model_name}:{version}")
+            artifact.download(MODEL_DIR)
+            model = joblib.load(model_path)
+            app.logger.info(f"Downloaded and loaded model {model_name} version {version}")
+            return jsonify({"message": f"Model {model_name} version {version} downloaded and loaded"})
+
+        except Exception as e:
+            app.logger.error(f"Failed to download/load model {model_name} version {version}: {e}")
+            return jsonify({"error": f"Failed to download/load model: {e}"}), 500
 
 
-@app.route("/logs", methods=["GET"])
-def logs():
-    """Reads data from the log file and returns them as the response"""
+    @app.route("/predict", methods=["POST"])
+    def predict():
+        """
+        Handles POST requests made to http://IP_ADDRESS:PORT/predict
+
+        Returns predictions
+        """
+        json = request.get_json()
+        app.logger.info(json)
+
+        if model is None:
+            return jsonify({"error": "No model is currently loaded"}), 500
+
+        try:
+            input_data = request.get_json()
+            df = pd.DataFrame(input_data)
+
+            predictions = model.predict_proba(df)[:, 1]
+            response = {"predictions": predictions.tolist()}
+            app.logger.info(f"Generated predictions: {response}")
+            
+            return jsonify(response)
+
+        except Exception as e:
+            app.logger.error(f"Prediction failed: {e}")
+            return jsonify({"error": f"Prediction failed: {e}"}), 500
     
-    # TODO: read the log file specified and return the data
-    raise NotImplementedError("TODO: implement this endpoint")
 
-    response = None
-    return jsonify(response)  # response must be json serializable!
+app = create_app()
 
-
-@app.route("/download_registry_model", methods=["POST"])
-def download_registry_model():
-    """
-    Handles POST requests made to http://IP_ADDRESS:PORT/download_registry_model
-
-    The comet API key should be retrieved from the ${COMET_API_KEY} environment variable.
-
-    Recommend (but not required) json with the schema:
-
-        {
-            workspace: (required),
-            model: (required),
-            version: (required),
-            ... (other fields if needed) ...
-        }
-    
-    """
-    # Get POST json data
-    json = request.get_json()
-    app.logger.info(json)
-
-    # TODO: check to see if the model you are querying for is already downloaded
-
-    # TODO: if yes, load that model and write to the log about the model change.  
-    # eg: app.logger.info(<LOG STRING>)
-    
-    # TODO: if no, try downloading the model: if it succeeds, load that model and write to the log
-    # about the model change. If it fails, write to the log about the failure and keep the 
-    # currently loaded model
-
-    # Tip: you can implement a "CometMLClient" similar to your App client to abstract all of this
-    # logic and querying of the CometML servers away to keep it clean here
-
-    raise NotImplementedError("TODO: implement this endpoint")
-
-    response = None
-
-    app.logger.info(response)
-    return jsonify(response)  # response must be json serializable!
-
-
-@app.route("/predict", methods=["POST"])
-def predict():
-    """
-    Handles POST requests made to http://IP_ADDRESS:PORT/predict
-
-    Returns predictions
-    """
-    # Get POST json data
-    json = request.get_json()
-    app.logger.info(json)
-
-    # TODO:
-    raise NotImplementedError("TODO: implement this enpdoint")
-    
-    response = None
-
-    app.logger.info(response)
-    return jsonify(response)  # response must be json serializable!
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
