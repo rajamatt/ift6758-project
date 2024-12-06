@@ -14,6 +14,7 @@ from flask import Flask, jsonify, request
 import pandas as pd
 import joblib
 from wandb import Api
+import re
 
 LOG_FILE = 'flask.log'
 MODEL_DIR = 'models'
@@ -64,6 +65,12 @@ def initialize_app(app):
             app.logger.error(f"Failed to download/load default model {DEFAULT_MODEL} from WandB: {e}")
 
 
+def clean_log(log_line):
+    """Cleans a log before logging it"""
+    log_line = re.sub(r'\x1b\[[0-9;]*m', '', log_line)
+    return re.sub(r'\n', '', log_line)
+
+
 def register_routes(app):
     @app.route("/logs", methods=["GET"])
     def logs():
@@ -71,6 +78,9 @@ def register_routes(app):
         try:
             with open(LOG_FILE, "r") as log_file:
                 log_data = log_file.readlines()
+
+            log_data = [clean_log(line) for line in log_data]
+            
             return jsonify({"logs": log_data})
         except FileNotFoundError:
             return jsonify({"error": "Log file not found"}), 404
