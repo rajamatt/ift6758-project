@@ -9,18 +9,15 @@ gunicorn can be installed via:
 
 """
 import os
-from pathlib import Path
 import logging
-from flask import Flask, jsonify, request, abort
-import sklearn
+from flask import Flask, jsonify, request
 import pandas as pd
 import joblib
-import ift6758
 from wandb import Api
 
-LOG_FILE = os.environ.get("FLASK_LOG", "flask.log")
-MODEL_DIR = "models"
-DEFAULT_MODEL = "default_model.pkl"
+LOG_FILE = 'flask.log'
+MODEL_DIR = 'models'
+DEFAULT_MODEL = 'lg_distance.pkl'
 
 model = None
 
@@ -28,16 +25,14 @@ def create_app():
     app = Flask(__name__)
     app.logger.setLevel(logging.INFO)
 
-    # Initialize app components
     initialize_app(app)
-
-    # Register routes
     register_routes(app)
 
     return app
 
 
 def initialize_app(app):
+    """Initializes the app: setup logging and load the default model."""
     logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s - %(message)s")
     os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -45,11 +40,29 @@ def initialize_app(app):
     model_path = os.path.join(MODEL_DIR, DEFAULT_MODEL)
 
     if os.path.exists(model_path):
-        global model
         model = joblib.load(model_path)
-        app.logger.info(f"Loaded default model: {DEFAULT_MODEL}")
+        app.logger.info(f'Loaded default model: {DEFAULT_MODEL} from local storage')
     else:
-        app.logger.warning("Default model not found. Predict endpoint will not work until a model is loaded.")
+        app.logger.warning(f"Default model {DEFAULT_MODEL} not found locally. Attempting to fetch from WandB...")
+
+        try:
+            workspace = 'IFT6758.2024-B08'
+            model_name = 'lg_distance'
+
+            api_key = os.getenv('WANDB_API_KEY', None)
+            if not api_key:
+                raise ValueError("WANDB_API_KEY is not set. Please set your WandB API key.")
+
+            api = Api(api_key=api_key)
+            artifact = api.artifact(f"{workspace}/{model_name}:latest")
+            artifact.download(MODEL_DIR)
+
+            model = joblib.load(model_path)
+            app.logger.info(f"Downloaded and loaded default model {DEFAULT_MODEL} from WandB")
+        except Exception as e:
+            model = None
+            app.logger.error(f"Failed to download/load default model {DEFAULT_MODEL} from WandB: {e}")
+
 
 def register_routes(app):
     @app.route("/logs", methods=["GET"])
@@ -92,17 +105,19 @@ def register_routes(app):
         
         try:
             model_path = os.path.join(MODEL_DIR, f"{model_name}_{version}.pkl")
+            
             if os.path.exists(model_path):
                 global model
                 model = joblib.load(model_path)
                 app.logger.info(f"Loaded model {model_name} version {version} from local storage")
+                
                 return jsonify({"message": f"Model {model_name} version {version} loaded from local storage"})
 
-            # Download model from WandB
             artifact = api.artifact(f"{workspace}/{model_name}:{version}")
             artifact.download(MODEL_DIR)
             model = joblib.load(model_path)
             app.logger.info(f"Downloaded and loaded model {model_name} version {version}")
+
             return jsonify({"message": f"Model {model_name} version {version} downloaded and loaded"})
 
         except Exception as e:
@@ -138,7 +153,7 @@ def register_routes(app):
             return jsonify({"error": f"Prediction failed: {e}"}), 500
     
 
-app = create_app()
+app = create_app() # this way we only have to do "python app.py" to run the app
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
