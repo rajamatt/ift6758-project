@@ -45,13 +45,18 @@ WORKDIR /code
 
 
 # TODO: add code, optionally a default model if you want 
-
+ADD ./requirements.txt ./requirements.txt
+ADD ./serving ./serving
+ADD ./ift6758 ./ift6758
+RUN mkdir -p serving/models
 
 # TODO: install libs
-
+RUN pip install -r requirements.txt
+RUN pip install -e .
 
 # TODO: expose ports (or do this in docker-compose)
-
+EXPOSE 5000
 
 # TODO: specify default command - this is not required because you can always specify the command
 # either with the docker run command or in the docker-compose file
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "serving.app:app"]
