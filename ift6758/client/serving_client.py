@@ -49,7 +49,7 @@ class ServingClient:
             response = requests.get(f"{self.base_url}/logs")
             response.raise_for_status()
             return response.json()
-    except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching logs: {e}")
             raise
 
