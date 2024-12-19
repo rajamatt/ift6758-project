@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 import os
 from PIL import Image
 from scipy.ndimage import gaussian_filter
+
 season_range = [2016,2017,2018,2019,2020,2021,2022,2023]
 shot_types = ['wrist', 'slap', 'backhand', 'snap', 'tip-in', 'deflected','wrap-around','poke', 'bat', 'between-legs', 'cradle']
 team_list = ['Lightning', 'Penguins', 'Kraken', 'Golden Knights', 'Canadiens','Maple Leafs', 'Rangers', 'Capitals', 'Avalanche', 'Blackhawks',

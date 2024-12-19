@@ -1,0 +1,15 @@
+numpy
+pandas
+requests
+matplotlib
+seaborn
+ipython
+ipywidgets
+plotly
+pillow
+scipy
+wandb
+gunicorn
+flask
+joblib
+scikit-learn
