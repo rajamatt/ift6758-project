@@ -27,13 +27,31 @@ class ServingClient:
         Args:
             X (Dataframe): Input dataframe to submit to the prediction service.
         """
+        try:
+            json_data = json.loads(X[self.features].to_json())
+        
+            response = requests.post(f"{self.base_url}/predict", json=json_data)
+            response.raise_for_status()  # Raise exception for HTTP errors
+        
+            predictions = response.json()['predictions']
+            return pd.DataFrame(predictions, columns=['prediction'], index=X.index)
 
-        raise NotImplementedError("TODO: implement this function")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error making prediction request: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error processing prediction: {e}")
+            raise
 
     def logs(self) -> dict:
         """Get server logs"""
-
-        raise NotImplementedError("TODO: implement this function")
+        try:
+            response = requests.get(f"{self.base_url}/logs")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching logs: {e}")
+            raise
 
     def download_registry_model(self, workspace: str, model: str, version: str) -> dict:
         """
@@ -50,5 +68,18 @@ class ServingClient:
             model (str): The model in the Comet ML registry to download
             version (str): The model version to download
         """
-
-        raise NotImplementedError("TODO: implement this function")
+        try:
+            payload = {
+                "workspace": workspace,
+                "model": model,
+                "version": version
+            }
+            response = requests.post(
+                f"{self.base_url}/download_registry_model",
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error downloading model: {e}")
+            raise
