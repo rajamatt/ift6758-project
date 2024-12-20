@@ -15,5 +15,6 @@ setuptools
 streamlit
 gunicorn
 waitress
+python-dotenv
 flask
 scikit-learn==1.5.1
