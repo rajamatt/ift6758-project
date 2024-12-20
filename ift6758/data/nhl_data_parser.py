@@ -107,8 +107,8 @@ class NHLDataParser:
         Returns:
             dict: Map for team ID to team name
         """
-        home_team = game_data['homeTeam']['name']['default']
-        away_team = game_data['awayTeam']['name']['default']
+        home_team = game_data['homeTeam']['commonName']['default']
+        away_team = game_data['awayTeam']['commonName']['default']
 
         return {game_data['homeTeam']['id']: home_team, game_data['awayTeam']['id']: away_team}
 
@@ -274,6 +274,7 @@ class NHLDataParser:
         
         all_plays['previousEvent'] = all_plays['typeDescKey'].shift(1)
         all_plays['timeDiff'] = all_plays['timeRemaining'].shift(1) - all_plays['timeRemaining']
+
 
         all_plays = self.__extract_info_to_columns(
             columns=EVENT_COMMON_COLUMNS,
