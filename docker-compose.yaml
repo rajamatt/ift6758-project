@@ -1,31 +1,25 @@
-# docker-compose.yml
-version: '3'
-
 services:
   serving:
     build:
-      context: ./
+      context: ./ 
       dockerfile: ./Dockerfile.serving
-#      args:
-#        ARG: <ARG>
     image: ift6758/serving:latest
     ports:
       - "5000:5000"
     environment:
-      - WANDB_API_KEY=${WANDB_API_KEY}
+      - WANDB_API_KEY=53ffcfe608b9c6b9a6eb5e1de300ca5fb5385a8c
+      - WANDB_ENTITY=team08
+      - WANDB_PROJECT=IFT6758.2024-B08
     command: ["gunicorn", "--bind", "0.0.0.0:5000", "serving.app:app"]
-###### Uncomment below when you're ready to add the final notebook container to your docker compose
-##  streamlit:
-##    build:
-##      context: ./
-##      dockerfile: ./Dockerfile.streamlit
-##      args:
-##        ARG: <ARG>
-##    image: ift6758/streamlit:<TAG>
-##    ports:
-##      - <STREAMLIT_PORT>:<STREAMLIT_PORT>
-##    environment:
-##      OTHER_DOCKER_ENV_VAR = ${OTHER_LOCAL_ENV_VAR}
-      
 
-     
+  streamlit-service:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.streamlit
+    image: ift6758/streamlit:latest
+    ports:
+      - "8501:8501"
+    depends_on:
+      - serving
+    environment:
+      - MODEL_SERVICE_URL=http://serving:5000

@@ -7,6 +7,7 @@ import pickle
 import requests
 import os
 import ift6758.client as client
+
 st.title("Live Game Dashboard")
 api = Api()
 MODEL_DIR = 'models'
@@ -34,7 +35,6 @@ with st.sidebar:
         model_version = "lg_distance_angle"
     version = st.selectbox("Version", ["latest"])
     if st.button("Download model"):
-        # Code to download the model from wandb
         try:
             model_path = os.path.join(MODEL_DIR, f"{model_version}.pkl")
             if os.path.exists(model_path):

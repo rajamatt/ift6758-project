@@ -14,6 +14,7 @@ from flask import Flask, jsonify, request
 import pandas as pd
 import joblib
 from wandb import Api
+import wandb
 import re
 
 LOG_FILE = 'flask.log'
