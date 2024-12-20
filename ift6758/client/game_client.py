@@ -15,7 +15,8 @@ class GameClient:
         """
         self.data_fetcher = NHLDataFetcher()
         self.data_parser = NHLDataParser()
-        self.processed_events = {}  
+        self.processed_events = pd.DataFrame()
+        self.current_game_id = None  
 
     def get_new_events(self, game_id: str) -> pd.DataFrame:
         """
@@ -28,31 +29,14 @@ class GameClient:
         Returns:
             pd.DataFrame: DataFrame containing the required features for new events
         """
-        try:
-            # latest game data
-            self.data_fetcher.fetch_raw_game_data(game_id)
-            
-            # all events and features
-            all_events_df = self.data_parser.get_shot_and_goal_pbp_df(game_id)
-            
-            # Initialize
-            if game_id not in self.processed_events:
-                self.processed_events[game_id] = set()
-            
-            # events we haven't processed yet
-            new_events_mask = ~all_events_df.index.isin(self.processed_events[game_id])
-            new_events_df = all_events_df[new_events_mask]
-            
-            # event under processing 
-            self.processed_events[game_id].update(new_events_df.index)
-            
+        # IF new gameid, reset processed events
+        if self.current_game_id != game_id:
+            self.processed_events = pd.DataFrame()
+            self.current_game_id = game_id
+        # all events and features
+        all_events_df = self.data_parser.get_shot_and_goal_pbp_df(game_id)
 
+        # only get new events
+        self.processed_events = pd.concat([self.processed_events, all_events_df]).drop_duplicates(keep=False)
 
-            if not new_events_df.empty:
-                return new_events_df[['shotDistance', 'shotAngle', 'emptyNet', 'isGoal']]
-            
-            return pd.DataFrame()
-            
-        except Exception as e:
-            logger.error(f"Error getting new events for game {game_id}: {e}")
-            return pd.DataFrame()
+        return self.processed_events
