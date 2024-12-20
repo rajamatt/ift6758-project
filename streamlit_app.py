@@ -10,6 +10,10 @@ General template for your streamlit app.
 Feel free to experiment with layout and adding functionality!
 Just make sure that the required functionality is included as well
 """
+
+# Get the service URL from environment variables
+MODEL_SERVICE_URL = os.getenv("MODEL_SERVICE_URL", "http://localhost:5000")
+
 serving_client = client.ServingClient()
 st.title("Live Game Dashboard")
 
@@ -24,9 +28,6 @@ with st.sidebar:
             serving_client.download_registry_model(workspace = 'IFT6758.2024-B08',model='lg_distance',version=version)
         else:
             serving_client.download_registry_model(workspace = 'IFT6758.2024-B08',model='lg_angle_distance',version=version)
-
-        
-
        
         st.success("Model downloaded successfully")
 
