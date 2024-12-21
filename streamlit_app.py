@@ -17,13 +17,13 @@ api_key = os.getenv('WANDB_API_KEY', None)
 if not api_key:
     st.text("WANDB_API_KEY is not set. Please set your WandB API key in the environment variables.")
 
-# Initialize session state for model and game client
+# Initialize session state for model, game client, and game data
 if 'model' not in st.session_state:
     st.session_state.model = None
 if 'game_client' not in st.session_state:
     st.session_state.game_client = client.GameClient()
-
-game_data = pd.DataFrame()
+if 'game_data' not in st.session_state:
+    st.session_state.game_data = pd.DataFrame()
 
 with st.sidebar:
     st.write('Workspace: IFT6758.2024-B08')
@@ -77,18 +77,18 @@ with st.container():
                 else:
                     new_data['goal_probability'] = st.session_state.model.predict_proba(new_data[['shotDistance', 'shotAngle']])[:, 1]
                
-                game_data = pd.concat([game_data, new_data])
+                st.session_state.game_data = pd.concat([st.session_state.game_data, new_data])
             
-            period = game_data['periodNumber'].iloc[-1]
+            period = st.session_state.game_data['periodNumber'].iloc[-1]
             if period > 3:
                 period = f"OT{period-3}"
             st.write(f"Period: {period}")
-            minutes, seconds = divmod(game_data['timeRemaining'].iloc[-1], 60)
+            minutes, seconds = divmod(st.session_state.game_data['timeRemaining'].iloc[-1], 60)
             st.write(f"Time Left in Period: {minutes}:{seconds}")
             
             # Display sum of expected goals for each team
-            expected_goals_home = game_data[game_data['shootingTeam'] == home_team]['goal_probability'].sum()
-            expected_goals_away = game_data[game_data['shootingTeam'] == away_team]['goal_probability'].sum()
+            expected_goals_home = st.session_state.game_data[st.session_state.game_data['shootingTeam'] == home_team]['goal_probability'].sum()
+            expected_goals_away = st.session_state.game_data[st.session_state.game_data['shootingTeam'] == away_team]['goal_probability'].sum()
 
             # Display scoreboard
             col1, col2 = st.columns(2)
@@ -103,17 +103,13 @@ with st.container():
                 st.markdown(f"<h2 style='text-align: left;'>{away_team}</h2>", unsafe_allow_html=True)
                 st.metric(label="XG", value=f"{expected_goals_away:.2f}", delta=f"{expected_goals_away - away_score:.2f}")
         
-
             # Display table with all currently available game data
             st.write("Game Data")
             display_columns = ['periodNumber','timeInPeriod', 'isGoal', 'shotType', 'emptyNet', 'xCoord', 'yCoord',
         'zoneCode', 'shootingTeam', 'shotDistance', 'shotAngle', 'shootingPlayer', 'goalieInNet',
             'rebound', 'speed', 'goal_probability']
-            st.dataframe(game_data[display_columns])
+            st.dataframe(st.session_state.game_data[display_columns])
         else:
             st.write("Model not loaded")
 
-with st.container():
-    # TODO: Add data used for predictions
-    pass
 
