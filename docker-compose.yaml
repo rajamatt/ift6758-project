@@ -7,14 +7,14 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - WANDB_API_KEY=53ffcfe608b9c6b9a6eb5e1de300ca5fb5385a8c
+      - WANDB_API_KEY=
       - WANDB_ENTITY=team08
       - WANDB_PROJECT=IFT6758.2024-B08
     command: ["gunicorn", "--bind", "0.0.0.0:5000", "serving.app:app"]
 
   streamlit-service:
     build:
-      context: .
+      context: ./
       dockerfile: ./Dockerfile.streamlit
     image: ift6758/streamlit:latest
     ports:
@@ -22,4 +22,9 @@ services:
     depends_on:
       - serving
     environment:
+      - WANDB_API_KEY=
+      - WANDB_ENTITY=team08
+      - WANDB_PROJECT=IFT6758.2024-B08
       - MODEL_SERVICE_URL=http://serving:5000
+    
+    

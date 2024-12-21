@@ -62,10 +62,12 @@ WORKDIR /code
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
+COPY ./ift6758 ./ift6758
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -e ./ift6758
 
 # Copy the Streamlit app into the container
-COPY streamlit_app.py /code/
+COPY streamlit_app.py .
 
 # Expose the port Streamlit will run on
 EXPOSE 8501
