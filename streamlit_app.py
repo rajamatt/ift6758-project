@@ -7,6 +7,7 @@ import pickle
 import requests
 import os
 import ift6758.client as client
+import wandb
 
 st.title("Live Game Dashboard")
 api = Api()
@@ -14,8 +15,11 @@ MODEL_DIR = 'models'
 API_URL = 'https://api-web.nhle.com'
 PLAY_BY_PLAY_ENDPOINT = '/v1/gamecenter/{game-id}/play-by-play'
 api_key = os.getenv('WANDB_API_KEY', None)
+
 if not api_key:
     st.text("WANDB_API_KEY is not set. Please set your WandB API key in the environment variables.")
+else:
+    wandb.login(key=api_key)
 
 # Initialize session state for model, game client, and game data
 if 'model' not in st.session_state:
